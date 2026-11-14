@@ -5,7 +5,7 @@ name: sqlite
 # served in the test (yt-core tests/sqlite_ext.rs) - and VERSION, yt-sqlite's version and
 # sqlpkg.json's checked to agree. On a tag v<version>: built for the five platforms sqlpkg
 # installs on, each a zip of yt.so / yt.dylib / yt.dll, attached to that tag's release - the
-# assets sqlpkg.json names (`sqlpkg install github.com/DBinvent/yt-cluster-light`).
+# assets sqlpkg.json names (`sqlpkg install github.com/DBinvent/yt-cluster-lite`).
 #
 # Linux builds in a manylinux_2_28 container: glibc 2.28 and later, RHEL 8 on. OpenSSL is built
 # into the extension (openssl's `vendored`): perl for it everywhere, NASM on Windows.

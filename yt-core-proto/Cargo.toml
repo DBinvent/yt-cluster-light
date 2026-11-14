@@ -6,7 +6,7 @@ description = "YT Cluster lite: the Rust types of the base, db and link protos, 
 
 authors = ["Vladimir Krinitsyn <v.krinitsyn@gmail.com>", "DBinvent <support@dbinvent.com>"]
 license = "MIT"
-repository = "https://github.com/DBinvent/yt-cluster-light.git"
+repository = "https://github.com/DBinvent/yt-cluster-lite.git"
 homepage = "https://www.dbinvent.com/"
 readme = "README.md"
 documentation = "https://www.dbinvent.com/cluster"

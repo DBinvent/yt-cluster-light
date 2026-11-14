@@ -1,8 +1,8 @@
 # Embedding a big cluster node capabilities with bi-directional sync of selected (portion) table right into your app.
 
-[![audit](https://github.com/DBinvent/yt-cluster-light/actions/workflows/audit.yml/badge.svg)](https://github.com/DBinvent/yt-cluster-light/actions/workflows/audit.yml)
-[![trivy](https://github.com/DBinvent/yt-cluster-light/actions/workflows/trivy.yml/badge.svg)](https://github.com/DBinvent/yt-cluster-light/actions/workflows/trivy.yml)
-[![coverage](https://raw.githubusercontent.com/DBinvent/yt-cluster-light/badges/coverage.svg?sanitize=true)](https://github.com/DBinvent/yt-cluster-light/actions/workflows/coverage.yml)
+[![audit](https://github.com/DBinvent/yt-cluster-lite/actions/workflows/audit.yml/badge.svg)](https://github.com/DBinvent/yt-cluster-lite/actions/workflows/audit.yml)
+[![trivy](https://github.com/DBinvent/yt-cluster-lite/actions/workflows/trivy.yml/badge.svg)](https://github.com/DBinvent/yt-cluster-lite/actions/workflows/trivy.yml)
+[![coverage](https://raw.githubusercontent.com/DBinvent/yt-cluster-lite/badges/coverage.svg?sanitize=true)](https://github.com/DBinvent/yt-cluster-lite/actions/workflows/coverage.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 YT Cluster lite is the open part of [YT Cluster](https://www.dbinvent.com/cluster/), under

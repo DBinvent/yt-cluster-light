@@ -12,7 +12,7 @@ All three use one store: `yt-core/src/lite.rs`.
 With [sqlpkg](https://github.com/nalgeon/sqlpkg-cli), from this repository's `sqlpkg.json`:
 
 ```
-sqlpkg install github.com/DBinvent/yt-cluster-light
+sqlpkg install github.com/DBinvent/yt-cluster-lite
 ```
 
 Or take the release asset for your platform, `yt-sqlite-<version>-<platform>.zip`
