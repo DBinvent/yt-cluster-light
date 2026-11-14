@@ -1,0 +1,12 @@
+_version: 1
+# [i18n] yt-core-proto's messages in Japanese: one file per language (en, ru, and - not
+# reviewed - fr, de, zh, ja), every key in each. An error's message starts with its code,
+# the same in every language (src/i18n.rs tests it). YT light's codes have three digits,
+# YT-Ennn - yt-core-proto YT-E001 to YT-E029, yt-core YT-E030 and up; YT Cluster's own have
+# four, YT-Ennnn.
+
+# the generated gRPC clients (build.rs puts i18n::not_ready in their code)
+grpc.not_ready: "YT-E001 サービスの準備ができていません：%{err}"
+
+# [types] the messages of the crate's own checks, shown to the user as they are
+types.action_invalid: "YT-E002 'action' フィールドの値が無効です：%{action}"

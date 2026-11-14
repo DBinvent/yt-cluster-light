@@ -1,0 +1,7 @@
+[workspace]
+members = ["yt-core-proto", "yt-core", "yt-turso-load"]
+resolver = "2"
+
+[workspace.package]
+edition = "2024"
+license = "MIT"

@@ -1,0 +1,33 @@
+[package]
+name = "yt-core-proto"
+version = "1.21.0"
+edition.workspace = true
+description = "YT Cluster light: the Rust types of the base, db and link protos, their helper code, and the gRPC client and server stubs"
+
+authors = ["Vladimir Krinitsyn <v.krinitsyn@gmail.com>", "DBinvent <support@dbinvent.com>"]
+license = "MIT"
+repository = "https://github.com/DBinvent/yt-cluster-light.git"
+homepage = "https://www.dbinvent.com/"
+readme = "README.md"
+documentation = "https://www.dbinvent.com/cluster"
+keywords = ["postgres"]
+
+
+[features]
+default = ["server"]
+# the gRPC server stubs (LocalGrpc, Link): what a node serves. A light node only calls.
+server = []
+
+[dependencies]
+tonic = { version = "^0.14", features = ["codegen", "server", "gzip", "transport"] }
+tonic-prost = { version = "^0.14" }
+prost = { version = "^0.14", features = ["derive"] }
+# its messages in the language the binary set, each under its code (locales/, src/i18n.rs)
+rust-i18n = "^4"
+serde = { version = "^1.0", features = ["derive"] }
+uuid = { version = "^1.23", features = ["v4"] }
+# diff_doc.proto's Rust types (its `proto` feature): base.proto's VarType carries a Mismatches
+diff_doc = { path = "../../diff-doc-rs", default-features = false, features = ["proto"] }
+
+[build-dependencies]
+tonic-prost-build = { version = "^0.14" }

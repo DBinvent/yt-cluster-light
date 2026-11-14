@@ -1,0 +1,117 @@
+_version: 1
+# [i18n] yt-core's messages in English: one file per language (en, ru, and - not reviewed -
+# fr, de, zh, ja), every key in each. An error's message starts with its code, the same in
+# every language (src/i18n.rs tests it) - after a SQLSTATE such as 0A000: when it has one,
+# which the extension reads at position 0. YT light's codes have three digits, YT-Ennn:
+# yt-core-proto YT-E001 to YT-E029, yt-core YT-E030 and up. YT Cluster's own have four,
+# YT-Ennnn. ytserv reads these files too, by symlink (its locales/light.<lang>.yml): what a
+# shared link file says is the same there, under the same code.
+
+# === the shared link files (src/core/signin.rs, route.rs): the light node and ytserv ===
+link-no-target-above: "YT-E030 no node of the cluster above to sign in through"
+link-no-target-az: "YT-E031 no node of az %{az} to sign in through"
+# the dial rules' reasons: the tail of the message that refuses a dial - no code of their own
+link-rule-lower: "a LOWER cluster is never dialled: it signs in to us, and we hold a verification key for it rather than an address"
+link-rule-upper-member: "rule 1: only this cluster's leader dials upward; a member has nothing to dial across a boundary"
+link-rule-upper-leader: "rule 1: an upward link must avoid the upper cluster's leader - pick a regular node"
+link-rule-neighbor: "rule 2: a neighbour link is leader-to-leader only"
+
+# === the light node (src/core/store.rs, calls.rs) ===
+light-leaf-no-down: "YT-E032 a light node is a leaf: nothing goes down from it"
+# a call's failure, the tail of the message that names the turn - no code of their own
+light-call-tls: "%{host} (TLS): %{error}"
+light-call-then-plaintext: "%{first} - then plaintext: %{error}"
+
+# === yt-light: its command line and its start (src/main.rs) ===
+light-usage-about: "yt-light - YT light: a YT node for one database of this PostgreSQL instance, a leaf of a\nYT cluster. It serves the yt_cluster extension's unix socket, keeps what the database\ncommits until the cluster above has it, and applies what comes down.\n"
+light-usage-args: "  yt-light [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] [-v | -q]\n\n  <url>               the database it serves, over the instance's unix socket:\n                      postgresql://postgres@localhost/appdb?host=/var/run/postgresql\n  --config            its config table (default: the extension's yt_config)\n  --file              key=value lines: the settings below, ahead of the config table's\n  --uuid              this node's uuid (default: the one it keeps in the config table)\n  -v, -q              debug, or warnings only; -h this text, -V the version\n"
+light-usage-settings: "Settings - a line `name=value` of --file, or a row of the config table, module L:\n  upper       nodes of the cluster above to dial (http://host:port), comma separated, tried in turn\n  upper_root  the root of the cluster above, SHA256:... - its CA, as `ytctl --skv-status` prints\n              it there; only what chains to it is taken from that cluster\n  cluster_db  this database's name in the cluster above (default: its own)\n  key_dir     where this node keeps its CA (default: ~/.yt-light/<this node's uuid>)\n  lang        the language of its messages: en, ru, fr, de, zh or ja (default: the database's)\n\n  INSERT INTO yt_config (name, module, value) VALUES ('upper', 'L', 'http://node1:7421');\n"
+light-usage-link: "No az: a light node has none to set. The node it signs in through takes it for a node of\nits own az - yt_info shows which - and sends it what that az holds.\n\nThe link: the cluster above admits this node by its CA, made at the first start. Its\noperator approves the CA on the cluster's leader once this node signed in - `ytctl\n--skv-approve <uuid> --fingerprint <fp>`, the fingerprint yt-light logs at its start. Then\nthe cluster countersigns it, and every call to it is TLS.\n\nErrors: each starts with its code, YT-Ennn - after a SQLSTATE such as 0A000: when it has\none; https://docs.dbinvent.com/errors/<code> explains it.\n"
+light-args: "YT-E033 the command line: %{error}"
+light-no-setting: "YT-E034 no setting %{name}: a line `%{name}=...` of --file, or a row of the config table, module L: INSERT INTO yt_config (name, module, value) VALUES ('%{name}', 'L', '...')"
+light-no-key-dir: "YT-E035 no key_dir set and no HOME: where to keep this node's CA - a line `key_dir=...` of --file, or a row of the config table, module L"
+light-pid-file: "YT-E036 the pid file %{file}: %{error}"
+light-another-node: "YT-E037 another node serves %{socket}: process %{pid} (its pid file %{file})"
+light-pid-race: "YT-E038 the pid file %{file}: taken by another start at the same time"
+light-socket: "YT-E039 the unix socket: %{error}"
+light-socket-stopped: "YT-E040 the unix socket server stopped: %{error}"
+light-ca: "YT-E041 this node's CA: %{error}"
+light-no-root: "YT-E042 no upper_root set: nothing the cluster above hands over is taken, so no TLS to it - set the SHA256:... of its CA, as `ytctl --skv-status` prints it there"
+light-start: "yt-light %{version}: a leaf of the cluster at %{hosts}"
+light-ca-line: "this node's CA %{fingerprint} (kept in %{dir}): the cluster above approves it on its leader - ytctl --skv-approve %{uuid} --fingerprint %{fingerprint}"
+light-tls-line: "link TLS: %{status}"
+light-serving: "serving database %{db} (as %{cluster_db} above) on %{socket}, node %{uuid}"
+light-stopped: "yt-light stopped: %{why}"
+light-signal-interrupt: "interrupt"
+light-signal-terminate: "terminate"
+light-signal-hangup: "hangup"
+light-signal-none: "no signal handler"
+
+# === yt-light: the link to the cluster above, a turn a second (src/main.rs) ===
+light-ask-failed: "YT-E043 asking where the cluster above is: %{error}"
+light-fetch-failed: "YT-E044 fetching from the cluster above: %{error} - the next node next"
+light-apply-failed: "YT-E045 applying a batch from the cluster above: %{error} - again next turn"
+light-collect-failed: "YT-E046 collecting what goes up: %{error}"
+light-batch-refused: "YT-E047 the cluster above refused a batch: %{error}"
+light-deliver-failed: "YT-E048 delivering to the cluster above: %{error}"
+light-resolve-failed: "YT-E049 settling prepared transactions: %{error}"
+light-sweep-failed: "YT-E050 open transactions: %{error}"
+light-signin-refused: "YT-E051 the cluster above refused the sign-in: %{reason}"
+light-signin-failed: "YT-E052 sign-in to the cluster above: %{error}"
+light-tls-problem: "YT-E053 link TLS: %{error}"
+light-tls-news: "link TLS: %{text}"
+light-fine-again: "%{what}: fine again"
+light-settled: "%{count} prepared transaction(s) settled as their database decided them"
+light-swept: "transactions that never prepared here: %{sent} committed, sent; %{dropped} dropped"
+light-signed-in-flat: "signed in to the cluster above: it has no azs"
+light-signed-in-az: "signed in to the cluster above: taken there for a node of az %{az}, the az of the node signed in through"
+
+# === the unix socket the extension calls (src/service.rs) ===
+light-chmod: "YT-E054 cannot chmod 0777 %{path}: %{error}"
+light-row-no-table: "YT-E055 a row without its table"
+light-one-database: "0A000: YT-E056 YT light serves one database (%{db}); several databases per instance need the full version"
+light-full-version: "0A000: YT-E057 %{what} needs the full version of YT Cluster"
+light-unknown-completion: "YT-E058 an unknown completion %{value}"
+light-complete-failed: "YT-E059 complete tx=%{tx}: %{error}"
+light-modify-refused: "modify: %{why} - a row of %{table}"
+light-info-refused: "info: '%{what}' refused - the full version's"
+light-info-az-none: "none: the cluster above has no azs"
+light-info-az-shared: "%{az} - the node above's, shared; a light node has none of its own"
+light-info-az-untold: "not told yet: no sign-in granted"
+light-info-light: "YT light: one database, a leaf of a YT cluster"
+
+# === the store, PostgreSQL (src/pg.rs) ===
+light-db-url: "YT-E060 the database url: %{error}"
+light-db-connect: "YT-E061 connecting to the database: %{error}"
+light-db: "YT-E062 the database, %{what}: %{error}"
+light-uuid-row: "YT-E063 the config table's row `uuid`, module L: %{error}"
+light-no-attnum: "YT-E064 %{table}: no column of attnum %{attnum}"
+light-no-column: "YT-E065 %{table}: no column %{column} here"
+light-keyless-no-old: "YT-E066 %{table}: a row of a table without a key, and without its old image"
+light-no-key-value: "YT-E067 %{table}: no value of key column %{column}"
+light-statement: "YT-E068 %{sql}: %{error}"
+
+# === the CA and the link's TLS (src/tls.rs) ===
+light-tls-internal: "YT-E069 TLS, %{what}: %{error}"
+light-file: "YT-E070 %{path}: %{error}"
+light-ca-mismatch: "YT-E071 %{dir}: ca.crt is not the certificate of ca.key"
+light-ca-key-lost: "YT-E072 %{dir}: ca.crt with no ca.key - the CA key is lost: move ca.crt away to make a new CA, which the cluster above approves again"
+light-ca-no-key: "YT-E073 the CA has no key"
+light-root-not-pinned: "YT-E074 no root pinned for the cluster above (setting upper_root: the SHA256:... of its CA, as `ytctl --skv-status` prints it there) - nothing it hands over is taken, so no TLS to it"
+light-root-no-chain: "YT-E075 no root the cluster above handed over chains to the one pinned (%{pin}) - not taken"
+light-ca-not-ours: "YT-E076 the countersigned CA from the cluster above is not this node's, or chains to none of its roots - not taken"
+light-no-link-service: "YT-E077 %{host} has no Link service: a node of YT Cluster before 1.21, which a light node cannot sign in through, or no YT Cluster node at all - the next node of upper is tried"
+light-leader-before-link: "YT-E078 the cluster above refused the sign-in: %{reason} - its leader runs YT Cluster before 1.21, which admits no light node; the sign-in is tried again, and goes through once that leader runs 1.21 or later"
+light-turso-no-table: "YT-E079 no table %{table} in this database"
+light-turso-no-key: "YT-E080 %{table} has no primary key: a table whose rows cross the link needs one"
+light-turso-value: "YT-E081 %{value} is no value for a column declared %{decl}"
+light-sqlite-no-file: "YT-E082 the database %{db} has no file - in memory, or temporary - and cannot link: open one from a file"
+light-sqlite-no-upper: "YT-E083 no cluster above to link to: set upper (yt_config, module L), or call yt_link(upper, upper_root)"
+light-sqlite-in-tx: "YT-E084 yt_link inside a transaction: a rollback would take its settings and this node's uuid while the link runs - call it outside one"
+light-sync-value: "YT-E085 %{value} is no A row value: give the one ytctl --encode-table-cfg prints, or none for both ways"
+light-sqlite-bad-root: "YT-E086 upper_root %{value} is no CA fingerprint: SHA256: and 43 characters, as ytctl --skv-status prints it"
+light-tls-status-ready: "countersigned by the cluster above, %{count} root(s) held: calls are TLS"
+light-tls-status-no-pin: "no upper_root pinned: nothing the cluster above hands over is taken"
+light-tls-status-waiting: "waiting for the cluster above to approve and countersign it"
+light-tls-countersigned: "this node's CA countersigned by the cluster above"
+light-tls-roots-held: "%{count} root(s) of the cluster above held"

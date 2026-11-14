@@ -1,0 +1,40 @@
+[package]
+name = "yt-sqlite"
+version = "1.21.0"
+edition = "2024"
+description = "YT Cluster light as a SQLite loadable extension: a SQLite database as a light node of a YT cluster, its tables synced both ways"
+authors = ["Vladimir Krinitsyn <v.krinitsyn@gmail.com>", "DBinvent <support@dbinvent.com>"]
+license = "MIT"
+repository = "https://github.com/DBinvent/yt-cluster-light.git"
+homepage = "https://www.dbinvent.com/"
+readme = "README.md"
+keywords = ["sqlite", "postgres", "sync"]
+# a loadable extension, shipped as a release asset (sqlpkg.json), not a crate
+publish = false
+
+# its own workspace: rusqlite here is built for a loadable extension (every call through the
+# host's API table), which no other crate of the repository can share - a test that loads it
+# links its own SQLite (yt-core/tests/sqlite_ext.rs)
+[workspace]
+
+[lib]
+# yt.so / yt.dylib / yt.dll as the release names it (SQLite's entry point: sqlite3_yt_init)
+name = "yt"
+crate-type = ["cdylib"]
+
+[dependencies]
+yt-core = { path = "../yt-core", default-features = false, features = ["tls", "lite"] }
+yt-core-proto = { path = "../yt-core-proto", default-features = false }
+# ~0.40: its libsqlite3-sys (0.38) takes a host SQLite from 3.34.1 on - RHEL 9, Debian 11,
+# Ubuntu 22.04, macOS. 0.41 on want 3.45.3: Ubuntu 24.04's 3.45.1 refused the extension
+rusqlite = { version = "~0.40", features = ["loadable_extension", "functions"] }
+tokio = { version = "^1.52", features = ["rt-multi-thread", "time", "sync"] }
+tonic = { version = "^0.14" }
+serde_json = "^1"
+# OpenSSL built in: an extension loaded anywhere cannot count on the host's
+openssl = { version = "^0.10.66", features = ["vendored"] }
+
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1

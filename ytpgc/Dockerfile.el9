@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
+# ─── Build context: the repo root (yt-cluster-light/) ────────────────────────
+# The extension for glibc 2.34 - RHEL 9 and its rebuilds (Alma, Rocky, Oracle
+# Linux 9), Amazon Linux 2023 - and any newer glibc. PostgreSQL from the PGDG
+# yum repository; artifacts named like the apt builds (Dockerfile), e.g.
+# yt_cluster1_21-pg16-glibc2_34.so.
+#
+# Build (build-all-ytpgc.sh does this with EL9=1):
+#   docker build --build-arg PG_MAJOR=16 -f ytpgc/Dockerfile.el9 -t yt-cluster-pg16-el9 .
+# ─────────────────────────────────────────────────────────────────────────────
+
+ARG BASE_IMAGE=almalinux:9
+FROM ${BASE_IMAGE}
+ARG PG_MAJOR=16
+
+# ── Build dependencies ────────────────────────────────────────────────────────
+# crb, epel                 protobuf(-c) compilers and headers; perl-IPC-Run and
+#                           the like that postgresqlN-devel requires
+# postgresqlN-devel         PGXS, PG headers, pg_config (in /usr/pgsql-N/bin)
+# redhat-rpm-config         the -specs=/usr/lib/rpm/redhat/... that PGDG's
+#                           pg_config CFLAGS name
+# protobuf-compiler         protoc - generates .pb-c.{c,h} via --c_out plugin
+# protobuf-c-compiler       protoc-gen-c plugin required by protoc --c_out
+# protobuf-c-devel          <protobuf-c/protobuf-c.h>; links as -lprotobuf-c
+# libcurl-devel             <curl/curl.h>; links as -lcurl (HTTP/2 gRPC transport)
+#
+# A major PGDG has not released yet is in its testing repo (pgdg<N>-updates-testing,
+# off by default): turned on only when the released repos have no postgresqlN-devel.
+RUN dnf -y install dnf-plugins-core epel-release \
+ && dnf config-manager --set-enabled crb \
+ && dnf -y install https://download.postgresql.org/pub/repos/yum/reporpms/EL-9-x86_64/pgdg-redhat-repo-latest.noarch.rpm \
+ && (dnf -qy module disable postgresql || true) \
+ && if ! dnf -q repoquery "postgresql${PG_MAJOR}-devel" 2>/dev/null | grep -q .; then \
+        echo "PostgreSQL ${PG_MAJOR} is not released in PGDG's repos yet: built from its testing one, pgdg${PG_MAJOR}-updates-testing" \
+        && dnf config-manager --set-enabled "pgdg${PG_MAJOR}-updates-testing"; \
+    fi \
+ && dnf -y install gcc make redhat-rpm-config shadow-utils \
+        postgresql${PG_MAJOR}-devel \
+        protobuf-compiler protobuf-c-compiler protobuf-c-devel \
+        libcurl-devel \
+ && dnf clean all
+
+ENV PATH=/usr/pgsql-${PG_MAJOR}/bin:$PATH
+
+# ── The build as a user of its own ────────────────────────────────────────────
+# root installs the packages above; the sources, the compile and the artifacts are an
+# unprivileged user's (Trivy DS-0002: no image of these builds as root)
+RUN useradd --create-home --uid 10001 builder \
+    && mkdir -p /build /output && chown builder:builder /build /output
+USER builder
+WORKDIR /build
+
+# ── Copy project sources (context = repo root), as Dockerfile does ────────────
+COPY --chown=builder:builder VERSION                       VERSION
+COPY --chown=builder:builder yt-core-proto/proto           yt-core-proto/proto
+COPY --chown=builder:builder ytpgc                         ytpgc
+
+WORKDIR /build/ytpgc
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+# with_llvm=no: PGDG builds PostgreSQL with LLVM, so PGXS would also emit JIT
+# bitcode with clang; the artifacts are the .so and the .a only.
+RUN make clean with_llvm=no && make with_llvm=no \
+ && mkdir -p /output \
+ && cp yt_cluster*.so libyt_cluster*.a /output/ \
+ && echo "=== Artifacts for PostgreSQL ${PG_MAJOR} (EL9) ===" \
+ && ls -lah /output/
+
+CMD ["ls", "-lah", "/output/"]

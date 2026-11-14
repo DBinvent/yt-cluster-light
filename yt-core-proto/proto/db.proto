@@ -1,0 +1,161 @@
+// SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
+syntax = "proto3";
+
+// The database extension's calls to its node, over the node's unix socket
+package db;
+import "base.proto";
+
+// Local UnixSocket Interface to Modify
+service LocalGrpc {
+  // trigger: insert, update, delete
+  rpc modify (DbInputEntity) returns (ModifyReply) {}
+  // commit, prepare, rollback (commit command less than cluster extra data, so leave as is for simplicity
+  rpc complete (base.ClusterComplete) returns (CompleteReply) {}
+  // yt_info(string ad array of modules char)
+  rpc info(InfoRequest) returns (InfoResponse) {}
+  // - yt_info(term, subterm): the subterm's status in detail, from the cache (module i)
+  // - yt_info(term, subterm, version): pulls it first, in more detail, with the data (module i)
+  // - yt_merge() with no valid argument: pulls, and answers as yt_info(i) does
+  // - yt_merge(term, subterm, state): pulls; with state = true it also fixes the
+  //   subterm, writing its status again
+  rpc merge(MergeRequest) returns (InfoResponse) {}
+  // yt_llm_query(): a question about this database in; the text-to-SQL model's
+  // statement, or a page of its rows, out
+  rpc llm(LlmRequest) returns (LlmReply) {}
+}
+
+message DataVersionDump {
+	// current term
+	uint32 term_delta = 1;
+	// completed subterm - tx
+	uint32 subterm = 2;
+}
+
+message DataVersionDumpTo {
+	string table = 1;
+	uint64 term_base = 2;
+	DataVersionDump data_version_dump = 3;
+}
+
+message ModifyReply {
+	uint64 result = 1;
+	DataVersionDumpTo dump = 2;
+	// True when this write left no cluster state for the transaction: the node
+	// registered nothing for it, so the matching complete() call would do nothing.
+	// The origin trigger then does not mark the transaction dirty and skips the
+	// prepare and commit round trips - 2 of the 4 unix-socket calls a tpcb-like
+	// transaction makes.
+	//
+	// `result` must NOT be used for this: it is the peers' summed affected-row
+	// count, so a legitimate 0-row apply is indistinguishable from "no state".
+	//
+	// Sense is deliberately negative so the proto3 default (false) means "call
+	// complete", i.e. today's behaviour: an old server talking to a new client
+	// never sets it and completion still happens.
+	bool skip_complete = 3;
+}
+
+message CompleteReply {
+	uint64 result = 1;
+}
+
+enum DbAction {
+	UPDATE = 0;
+	INSERT = 1;
+	DELETE = 2;
+	TRUNCATE = 3;
+}
+
+// A row change, as the trigger captured it
+message DbInputEntity {
+	// postgres TX on original host
+	uint64 tx = 1;
+	// TableRef
+	base.TableRef table = 2; // DbInputEntity
+  // use on update (and delete?) by attnum
+	map<uint32, base.VarType> old_data = 4;
+  // use on every by attnum
+	map<uint32, base.VarType> new_data = 5;
+	// DbAction
+	DbAction action = 6;
+	// original host
+	base.PeerUuid origin = 7;
+	// https://www.postgresql.org/docs/current/sql-set-transaction.html
+	// https://www.postgresql.org/docs/current/transaction-iso.html
+	PgIso iso = 8;
+	// https://www.postgresql.org/docs/current/sql-set-session-authorization.html
+	string user_role = 9;
+	// SET SESSION YT.JWT = '';
+	string jwt = 10;
+}
+
+message InfoRequest {
+	// YtServer Runtime if not set;
+	// except 'T' - as trigger runtime
+	string input = 1;
+}
+
+message InfoResponse {
+	repeated CfgVo data = 1;
+}
+
+// yt_llm_query(nl, page, size)
+message LlmRequest {
+	// the question, in plain language
+	string question = 1;
+	// current_database(): whose tables the node describes to the model
+	string db = 2;
+	// current_user: only the tables it may read are described, and a page of
+	// data is read as it
+	string role = 3;
+	// current_schemas(false): where the tables are looked for
+	repeated string schemas = 4;
+	// size > 0: the node runs the statement and answers with that page of rows,
+	// page 0 first; size = 0: it answers with the statement
+	uint32 page = 5;
+	uint32 size = 6;
+}
+
+message LlmReply {
+	// "sql" or "data"
+	string type = 1;
+	// the model's statement
+	string sql = 2;
+	// what yt_llm_query() returns: {"type":"sql","sql":...}, or {"type":"data",
+	// "data":[{...}],"column_names":[...],"column_desc":[...],"page":0,
+	// "page_size":10,"total_rows":9}
+	string json = 3;
+}
+
+message CfgVo {
+	string name = 1;
+	string value = 2;
+	// char
+	string module = 3;
+}
+
+message MergeRequest {
+  // term/subterm - 0 is invalid, if version 0, will be ignored
+  // if not set than will call pulldata
+	base.EntityKey key = 1;
+	// do data
+	bool pull = 2;
+	// if key set and if true, than set ClusterCommited to the term.subterm
+	bool force_commit = 3;
+}
+
+//read uncommitted
+//read committed
+//repeatable read
+//serializable
+
+enum PgIso {
+//read committed 0
+	ReadCommitted = 0;
+//read uncommitted 1
+	ReadUncommitted = 1;
+//repeatable read 2
+	RepeatableRead = 2;
+//serializable 3
+	Serializable = 3;
+}

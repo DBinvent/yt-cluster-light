@@ -1,0 +1,170 @@
+// SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
+syntax = "proto3";
+
+// Rows, keys and positions: what a database extension and a node exchange.
+package base;
+import "diff_doc.proto";
+
+message BaseApi {
+	// api version
+	int32 version = 1;
+	// reserved: a CRC, not used
+//	int32 crc = 2;
+	// the caller's index in the callee's peer list, for the callee's own use; not used
+	uint32 caller_idx = 4;
+
+	// caller peer uuid (u128: hi and lo)
+	PeerUuid peer = 5;
+
+	// W3C traceparent of the cluster transaction this call is made for (its `yt.tx`
+	// root span on the origin): the callee's span becomes its child. Empty when
+	// tracing is off. In the message, not the call's metadata, so it crosses a stream
+	// unchanged.
+	string traceparent = 6;
+
+	// reserved for later use
+//	uint64 region = 7;
+}
+
+// u128 wrapper
+message PeerUuid {
+	uint64 hi = 1;
+	uint64 lo = 2;
+}
+
+message CommonReply {
+	uint64 result = 1;
+	BaseApi base = 9;
+}
+
+enum ClusterCommitType {
+	Prepare = 0;
+	Commit = 1;
+	Rollback = 2;
+}
+
+// Prepare, commit or roll back a transaction
+message ClusterComplete {
+	// the SQL transaction on the origin's database
+	uint64 txid = 1;
+	// prepare, commit or rollback
+  ClusterCommitType commit = 2;
+  // the transaction's first entity key, to commit a prepared transaction and to name it.
+  // Not needed for a rollback or a plain COMMIT
+  base.EntityKey key = 3;
+	// the origin: a uuid as u128 hi and lo
+	base.PeerUuid orig = 4;
+	// commit this key (term.subterm) after this previous key; unset when the previous
+	// subterm comes first in natural order. When set the version is ignored; the term
+	// is usually the key's own, not always
+	base.EntityKey prev = 5;
+	// signature
+	base.Azs sign = 6;
+	// Rollback only: the origin dropped this member from the transaction - its
+	// statement failed or timed out. The member rolls back whatever session it still
+	// holds for the transaction but does not decide the subterm: it may commit on the
+	// other members and reach this one later.
+	bool abandon = 7;
+
+	base.BaseApi base = 9;
+}
+
+
+// A table, as the database extension describes it
+message TableRef {
+	// Table oid in PostgreSQL Catalog - uniq across all postgres DB in same instance
+	uint32 oid = 1;
+	// the db name
+	string db = 2;
+	// db schema name
+	string schema = 3;
+	// table name
+	string table = 4;
+	// Table columns
+	repeated ColumnRef columns = 5;
+}
+
+// Table columns from PgTupleDesc.attribute
+message ColumnRef {
+	uint32 attnum = 1;
+	// attrelid
+	uint32 oid = 2;
+	string name = 3;
+	bool pk = 4;
+	// type OID
+	uint32 atttypid = 5;
+	int32 atttypmod = 6;
+  // a column the table's config leaves out
+  bool ignore = 7;
+}
+
+// Native and string values
+message VarType {
+//		Null is a None in value
+
+  oneof value {
+		// default DataBase int
+		int64 Int = 1;
+
+		uint64 UInt = 2;
+
+		double Flt = 3;
+
+		bool Bool = 4;
+
+		// universal data that will be wrapped as string. Check table definition (config) for a format of it
+		string Universal = 5;
+
+	  // diff-doc-rs
+		diff_doc.Mismatches Diff = 6;
+
+	}
+}
+
+
+
+message EntityKey {
+  // cluster wide global sequential number from RAFT algorithm
+	// shared between databases in same instance
+	uint64 term = 1;
+	// logical operational number, grouped by transaction boundaries (actually u16)
+	// dedicated to single database
+	uint32 subterm = 2;
+	// sequential transaction number inside term. (actually u16) max is 1024
+	uint32 version = 3;
+}
+
+// A sorted list DataVersion[] starts with the highest term and subterm of a completed
+// transaction with no gap below it - no unfinished transaction with a lower number -
+// and the completed subterms follow.
+message DataVersion {
+  // the term whose leader issued these keys
+	uint64 term = 1;
+	// sorted commited subterm, the first is a prime
+	repeated uint32 subterm = 2;
+
+	// the last subterm, completed or not. It lets a subterm list be worked out again
+	// without a cache, or two DataVersion[] be merged, in a trigger for example. The
+	// database or node is all OK when:
+	// - subterm is empty and last = 0, or
+	// - subterm holds one element (least == max) and it equals last
+	uint32 last = 3;
+
+	// not used yet: an optional sorted list of uncommitted subterms, the first below the
+	// first prime subterm, to make a request smaller when (max completed subterm - least
+	// completed subterm) > the number of subterms: subterm[9], except[2] in place of
+	// subterm[1,3,4,5,6,7,8,9]
+	repeated uint32 except = 4;
+}
+
+// az transaction signature
+message Azs {
+	// az origin, not node origin
+	base.PeerUuid origin = 1;
+	// amount of entities in commit
+	uint32 cnt = 2;
+	// entities hash
+	repeated bytes hash = 3;
+	// hash signature by origin az
+	repeated bytes sign = 4;
+}

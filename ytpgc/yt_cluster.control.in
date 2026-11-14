@@ -1,0 +1,6 @@
+# yt_cluster extension
+comment = 'YT+RPPD+DiffDoc Cluster PostgreSQL Extension - C implementation'
+default_version = '@YT_CLUSTER_VERSION@'
+module_pathname = '$libdir/yt_cluster'
+relocatable = false
+superuser = true

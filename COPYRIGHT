@@ -1,0 +1,10 @@
+yt-cluster-light (ytcl) - YT Cluster light: the PostgreSQL extension of YT Cluster
+(ytpgc), the public protos and their Rust types (yt-core-proto), and a YT node for an
+application's embedded database (yt-core).
+
+Copyright (c) 2026 DBinvent
+
+Licensed under the MIT license: see LICENSE. The copies of diff-doc-rs's files it keeps
+(ytpgc/src/proto, yt-core-proto/proto/diff_doc.proto) are diff-doc-rs's, under its MIT
+license. The crates it is built with keep their own licenses, as Cargo.lock lists them,
+and so do the libraries the extension links (libcurl, libprotobuf-c).

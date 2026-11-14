@@ -1,0 +1,71 @@
+[package]
+name = "yt-core"
+version = "1.21.0"
+edition.workspace = true
+description = "YT Cluster light: a YT node for one database, linked to a YT cluster above - inside an application, or beside one PostgreSQL instance (yt-light)"
+
+
+authors = ["Vladimir Krinitsyn <v.krinitsyn@gmail.com>", "DBinvent <support@dbinvent.com>"]
+license = "MIT"
+repository = "https://github.com/DBinvent/yt-cluster-light.git"
+homepage = "https://www.dbinvent.com/"
+readme = "README.md"
+documentation = "https://www.dbinvent.com/cluster"
+keywords = ["postgres"]
+
+
+[features]
+default = ["service"]
+# yt-light: the service beside one PostgreSQL instance, behind the extension's unix
+# socket, with PostgreSQL as its store (src/main.rs, src/service.rs, src/pg.rs), and its CA and
+# TLS to the az above (src/tls.rs)
+service = ["tls", "dep:marg", "dep:tokio-postgres", "dep:tokio-stream", "dep:slog", "dep:slog-term", "dep:slog-async",
+	"dep:prost", "yt-core-proto/server", "tokio/rt-multi-thread", "tokio/signal", "tokio/fs"]
+# the node's CA and the TLS of its calls to the cluster above (src/tls.rs): yt-light's, and an
+# application's that links its own database (feature turso)
+tls = ["dep:openssl", "dep:tokio-openssl", "dep:hyper-util", "dep:tower", "dep:base64", "tokio/net"]
+# the light node inside an application, on Turso, the application's own database
+# (src/turso.rs): its rows captured by triggers, what comes down applied there
+turso = ["tls", "lite", "dep:turso"]
+# a light node's store in a database of the SQLite dialect (src/lite.rs): Turso's (feature
+# turso), SQLite's (yt-sqlite, the loadable extension)
+lite = ["dep:serde_json", "dep:prost", "dep:base64"]
+
+[[bin]]
+name = "yt-light"
+path = "src/main.rs"
+required-features = ["service"]
+
+[dependencies]
+yt-core-proto = { path = "../yt-core-proto", default-features = false }
+tokio = { version = "^1.52", features = ["macros", "rt", "time", "sync"] }
+tonic = { version = "^0.14", features = ["transport"] }
+# its messages in one language, each error under its code (locales/, src/i18n.rs); the shared
+# link files say theirs with it, in ytserv too
+rust-i18n = "^4"
+
+prost = { version = "^0.14", optional = true }
+tokio-postgres = { version = "^0.7", optional = true }
+# the command line, as YT Cluster's node takes it: the database, the config table, the uuid
+marg = { version = "^0.4.7", default-features = false, features = ["postgres"], optional = true }
+tokio-stream = { version = "^0.1", features = ["net"], optional = true }
+slog = { version = "^2.7", optional = true }
+slog-term = { version = "^2.8", optional = true }
+slog-async = { version = "^2.8", optional = true }
+# the CA and the link's TLS, as the cluster above speaks it (openssl, as ytserv)
+openssl = { version = "^0.10.66", optional = true }
+tokio-openssl = { version = "^0.6", optional = true }
+hyper-util = { version = "^0.1", features = ["tokio"], optional = true }
+tower = { version = "^0.5", default-features = false, features = ["util"], optional = true }
+base64 = { version = "^0.22", optional = true }
+# feature turso: the application's database, and its captured rows as JSON
+turso = { version = "=0.9.0-pre.5", optional = true }
+serde_json = { version = "^1", optional = true }
+
+[dev-dependencies]
+tokio = { version = "^1.52", features = ["macros", "rt", "rt-multi-thread", "time", "sync", "net"] }
+tokio-stream = { version = "^0.1", features = ["net"] }
+tokio-postgres = "^0.7"
+# tests/sqlite_ext.rs: a SQLite of its own that loads yt-sqlite, the extension (YT_SQLITE_EXT)
+rusqlite = { version = "^0.42", features = ["bundled", "load_extension"] }
+serde_json = "^1"

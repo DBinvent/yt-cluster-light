@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
+# ─── musl build of the yt-cluster PostgreSQL extension ───────────────────────────
+# Alpine uses musl libc everywhere, so all deps (libcurl, libprotobuf-c,
+# libpq) are musl-compiled and the resulting .so is suitable for Alpine PG.
+# No .a archive is produced - not needed for musl runtime deployments.
+#
+# ALPINE_TAG is chosen by build-all-ytpgc.sh based on PG_MAJOR because each
+# Alpine release ships a specific set of postgresql*-dev packages:
+#   alpine:3.20  →  PG 14-16
+#   alpine:3.21  →  PG 15-17  (default)
+#
+# Build:
+#   docker build --build-arg PG_MAJOR=16 -f ytpgc/Dockerfile.musl -t yt-cluster-pg16-musl .
+# Extract:
+#   docker run --rm -v "$(pwd)/ytpgc/dist:/dist" yt-cluster-pg16-musl \
+#       sh -c "cp /output/*.so /dist/ && chmod a+rw /dist/*.so"
+# ─────────────────────────────────────────────────────────────────────────────
+
+ARG PG_MAJOR=16
+ARG ALPINE_TAG=3.21
+FROM alpine:${ALPINE_TAG}
+ARG PG_MAJOR
+
+# ── Build tools + PostgreSQL dev headers (from Alpine standard repos) ─────────
+RUN apk add --no-cache \
+        build-base \
+        curl \
+        curl-dev \
+        protobuf-c-dev \
+        protobuf-c-compiler \
+        protoc \
+        perl \
+        "postgresql${PG_MAJOR}-dev"
+
+# When multiple PG versions are installed, /usr/bin/pg_config points to the
+# newest version.  If it doesn't match PG_MAJOR, create a thin wrapper at
+# /usr/local/bin/pg_config (higher PATH priority) that redirects the four
+# version-specific flags while forwarding everything else to the real binary.
+RUN actual=$(pg_config --version | grep -oE '[0-9]+' | head -1); \
+    if [ "$actual" != "${PG_MAJOR}" ]; then \
+        printf '#!/bin/sh\ncase "$1" in\n  --version)           echo "PostgreSQL %s.0" ;;\n  --pgxs)              echo "/usr/lib/postgresql%s/pgxs/src/makefiles/pgxs.mk" ;;\n  --pkglibdir)         echo "/usr/lib/postgresql%s" ;;\n  --includedir-server) echo "/usr/include/postgresql/%s/server" ;;\n  *)                   exec /usr/bin/pg_config "$@" ;;\nesac\n' \
+            "${PG_MAJOR}" "${PG_MAJOR}" "${PG_MAJOR}" "${PG_MAJOR}" \
+            > /usr/local/bin/pg_config && \
+        chmod +x /usr/local/bin/pg_config; \
+    fi
+
+# ── The build as a user of its own ────────────────────────────────────────────
+# root installs the packages above; the sources, the compile and the artifacts are an
+# unprivileged user's (Trivy DS-0002: no image of these builds as root)
+RUN adduser -D -u 10001 builder \
+    && mkdir -p /build /output && chown builder:builder /build /output
+USER builder
+WORKDIR /build
+
+# ── Copy project sources (context = repo root) ────────────────────────────────
+COPY --chown=builder:builder VERSION                       VERSION
+COPY --chown=builder:builder yt-core-proto/proto           yt-core-proto/proto
+COPY --chown=builder:builder ytpgc                         ytpgc
+
+WORKDIR /build/ytpgc
+
+# ── Build ─────────────────────────────────────────────────────────────────────
+# LIBC_SUFFIX=musl overrides the versioned filename tag.
+# Only the .so is copied - no .a required for musl runtime use.
+RUN make clean && make LIBC_SUFFIX=musl \
+ && mkdir -p /output \
+ && cp yt_cluster*.so /output/ \
+ && echo "=== musl Artifacts for PostgreSQL ${PG_MAJOR} ===" \
+ && ls -lah /output/
+
+CMD ["ls", "-lah", "/output/"]

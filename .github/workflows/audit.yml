@@ -1,0 +1,81 @@
+name: "audit&geiger"   # the badge's label, as Schema Guard's
+
+# cargo audit: known vulnerabilities (RustSec) in the dependencies. cargo geiger: unsafe
+# code in the crates here and in each crate they use, on the run's summary page.
+# On a push and a pull request (Dependabot's among them), and weekly: an advisory can come
+# out with nothing changed here.
+#
+# The crates take diff-doc-rs by path, cloned beside this repository (yt-core-proto's
+# README, Building): so the run checks out both, this one under yt-cluster-light/.
+on:
+  push:
+    branches-ignore: ["dependabot/**"]   # their pull request runs it
+  pull_request:
+  schedule:
+    - cron: "27 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # bash -eo pipefail: GitHub's default shell has no pipefail, and a piped step
+        # (cargo geiger | tee) would hide the command's failure
+        shell: bash
+        working-directory: yt-cluster-light
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: yt-cluster-light
+      - uses: actions/checkout@v7
+        with:
+          repository: vkrinitsyn/diff-doc-rs
+          path: diff-doc-rs
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      # the committed Cargo.lock: first that it is still the manifests' - a build would
+      # refuse one that is not - then its crates
+      - run: cargo metadata --locked --format-version 1 > /dev/null
+      - run: cargo audit
+      # and what a build resolving today would get, as a warning: an advisory with a fix
+      # released that the lock has not taken yet - cargo update takes it
+      - name: cargo audit, freshly resolved (warning only)
+        continue-on-error: true
+        run: |
+          cargo generate-lockfile
+          cargo audit
+
+  geiger:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        # bash -eo pipefail: GitHub's default shell has no pipefail, and a piped step
+        # (cargo geiger | tee) would hide the command's failure
+        shell: bash
+        working-directory: yt-cluster-light
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: yt-cluster-light
+      - uses: actions/checkout@v7
+        with:
+          repository: vkrinitsyn/diff-doc-rs
+          path: diff-doc-rs
+      - uses: dtolnay/rust-toolchain@stable
+      # the crates build: protoc for the protos, the OpenSSL headers for yt-light's TLS
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-geiger
+      # a report, not a gate: the counts go to the log and the summary page
+      - run: cargo geiger --workspace --output-format GitHubMarkdown | tee -a "$GITHUB_STEP_SUMMARY"

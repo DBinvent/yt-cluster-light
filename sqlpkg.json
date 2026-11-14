@@ -1,0 +1,23 @@
+{
+    "owner": "dbinvent",
+    "name": "yt",
+    "version": "1.21.0",
+    "homepage": "https://www.dbinvent.com/",
+    "repository": "https://github.com/DBinvent/yt-cluster-light",
+    "authors": ["DBinvent"],
+    "license": "MIT",
+    "description": "A SQLite database as a light node of a YT cluster: its tables synced both ways.",
+    "keywords": ["sync", "replication", "bi-directional", "postgres", "cluster", "offline", "yt"],
+    "symbols": ["yt_setup", "yt_sync", "yt_unsync", "yt_link", "yt_unlink", "yt_info"],
+    "assets": {
+        "path": "https://github.com/DBinvent/yt-cluster-light/releases/download/v{version}",
+        "files": {
+            "darwin-amd64": "yt-sqlite-{version}-macos-x64.zip",
+            "darwin-arm64": "yt-sqlite-{version}-macos-arm64.zip",
+            "linux-amd64": "yt-sqlite-{version}-linux-x64.zip",
+            "linux-arm64": "yt-sqlite-{version}-linux-arm64.zip",
+            "windows-amd64": "yt-sqlite-{version}-win-x64.zip"
+        },
+        "pattern": "yt.*"
+    }
+}

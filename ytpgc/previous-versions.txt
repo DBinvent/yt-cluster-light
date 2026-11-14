@@ -1,0 +1,3 @@
+# Earlier versions of the extension a database may still have, one a line: `make update-sql`
+# writes an update script from each to the version in ../VERSION (update-sql.py).
+0.5

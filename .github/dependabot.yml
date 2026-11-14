@@ -1,0 +1,25 @@
+# Dependabot: weekly updates of the crates' dependencies and of the actions the workflows
+# run. Security updates are switched on in the repository's settings (Code security), not
+# here.
+#
+# The crates take diff-doc-rs by path (../diff-doc-rs) until a release of it on crates.io
+# carries its `proto` feature; Dependabot does not see that sibling, and its cargo updates
+# fail to resolve until yt-core-proto takes diff_doc from crates.io.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    # one pull request for the minor and patch updates of a week; a major update comes on
+    # its own
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+  # the actions .github/workflows runs (audit.yml: cargo audit and cargo geiger; trivy.yml:
+  # trivy, pinned to a commit - Dependabot moves the pin; coverage.yml: cargo llvm-cov)
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

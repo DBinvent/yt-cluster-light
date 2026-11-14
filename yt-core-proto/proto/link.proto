@@ -1,0 +1,160 @@
+// SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
+syntax = "proto3";
+
+// A link between two clusters: the lower one signs in to the one above, and the rows
+// one cluster committed are carried to the other and applied there as a read-only
+// copy, outside the receiving cluster's own consensus, in the source cluster's order.
+//
+// A light node links the same way, to one cluster, and is no cluster and no az: a leaf
+// of that cluster. It names no az anywhere - the node it is linked to takes it for a
+// node of its own az, and a table's rows cross between them by that az's rules.
+package link;
+
+import "base.proto";
+import "db.proto";
+
+// The upper cluster's side of a link. A lower cluster dials a regular node of the
+// cluster above; the cluster above never dials a lower one, nor a light node.
+service Link {
+	// the lower cluster's leader, or a light node, signs in: its CA, for the operator's
+	// approval and then the link's TLS
+	rpc signin (LinkSignIn) returns (LinkGrant) {}
+	// down: what crossed to the lower az - to a light node - after its cursor
+	rpc fetch (RelayFetch) returns (RelayBatch) {}
+	// up: what the lower az - a light node - committed, for the cluster above to apply
+	rpc deliver (RelayBatch) returns (RelayAck) {}
+}
+
+// A node's place relative to an az
+enum PeerAzLevel {
+  DEFAULT = 0;
+  NEIGHBOR = 1;
+  UPPER = 2;
+  LOWER = 3;
+}
+
+// The sign-in of a lower cluster, or of a light node. The CA fields are sent when the link
+// runs TLS and the caller holds its CA key:
+//   ca_cert       its current CA certificate as it holds it: self-signed until the
+//                 upper signs it, then the signed one
+//   ca_prev_cert  continuity after a lower rotation: the previous CA version's
+//   ca_prev_sig   certificate, and its key's signature over ca_cert's DER
+//   ca_live       SHA256 fingerprints of every lower CA key still live: an approved
+//                 one no longer listed is revoked on the upper
+//   ca_roots_hash what it holds of the upper's root certificates
+//   ca_proof      possession of ca_cert's key, over the upper's challenge
+message LinkSignIn {
+	base.PeerUuid peer = 1;
+	// the az a lower cluster signs in as. Absent from a light node: it has no az - the
+	// cluster knows it by its node uuid (peer), and by the CA its operator approved
+	base.PeerUuid target_az = 3;
+	// the cluster signed in to, as the caller sees it: UPPER
+	PeerAzLevel level = 4;
+	base.BaseApi base = 9;
+	bytes ca_cert = 13;
+	bytes ca_prev_cert = 14;
+	bytes ca_prev_sig = 15;
+	repeated string ca_live = 16;
+	bytes ca_roots_hash = 17;
+	bytes ca_proof = 18;
+}
+
+// The answer to a sign-in
+message LinkGrant {
+	// signed in: the operator approved this CA
+	bool granted = 5;
+	// why not
+	string reason = 6;
+	// what ca_proof signs next, while the sign-in waits for the operator
+	bytes challenge = 8;
+	// the challenge's expiry, unix seconds
+	uint64 expires = 10;
+	// the CA fingerprint the operator is shown: `SHA256:<base64>`
+	string fingerprint = 11;
+	base.BaseApi base = 9;
+	// the lower CA's certificate, signed by the upper's CA
+	bytes ca_signed = 15;
+	// the upper's root certificates, DER
+	repeated bytes ca_roots = 16;
+	// to a light node: the az it is taken to be in - the az of the node it signed in
+	// through, empty in a cluster with no azs. Told, never asked: a light node cannot
+	// set it
+	string az = 12;
+}
+
+// A position in the SOURCE cluster's history: everything up to and including
+// this subterm of this term has been examined, whether it crossed or not.
+message RelayPos {
+	uint64 term = 1;
+	uint32 subterm = 2;
+}
+
+// Down: the lower cluster asks a regular node of the cluster above for what crossed
+// to its az after `from`.
+message RelayFetch {
+	base.BaseApi base = 1;
+	// the receiving az, as the source's catalogue names it. Empty from a light node, and
+	// not read from one: it receives what the az of the node it calls holds
+	string az = 2;
+	// absent: from the oldest history the source holds
+	RelayPos from = 3;
+	// at most this many rows in the answer (0: the source's default)
+	uint32 max_items = 4;
+}
+
+// One committed subterm of the source cluster, with only its rows that cross.
+message RelayItem {
+	uint64 term = 1;
+	uint32 subterm = 2;
+	repeated db.DbInputEntity data = 3;
+}
+
+// A run of the source cluster's history. Fetched (down), delivered across a link
+// (up), and delivered by a receiving cluster's hub to its members (both).
+message RelayBatch {
+	base.BaseApi base = 1;
+	// the az the rows were committed in. A light node sends none: its rows are taken as
+	// written in the az of the node it delivers to, which sets this on its way to the
+	// members
+	string source_az = 2;
+	repeated RelayItem items = 3;
+	// examined through here; the receiver's cursor moves to it once applied
+	RelayPos upto = 4;
+	// the source has more after `upto`
+	bool more = 5;
+	// the light node the rows were committed on, by its uuid: the positions are that
+	// node's own, so the receivers keep a cursor for it and not for its az. Set by the
+	// node a light node delivers to - what a caller itself sends here is not read
+	string light = 6;
+}
+
+// Where the receiver - for a hub, the slowest member it heard from - now is.
+message RelayAck {
+	base.BaseApi base = 1;
+	RelayPos at = 2;
+	string error = 3;
+}
+
+// What a light node reads of a table's config: the value of the table's A row in its config
+// table, as a cluster node encodes it (base64 of the cluster's own table config, whose field
+// 20 this is) - the other fields are the cluster's and are left unread. A light node syncs a
+// table that has an A row, up unless `az_routing.no_up`, down unless `az_routing.no_down`.
+message TableLink {
+	AzRouting az_routing = 20;
+}
+
+// Which azs a table is in, and how its rows move between them.
+//
+// Not sent means not readable: a node in an az the table is not in never receives
+// its rows, and nothing forwards a read there.
+message AzRouting {
+	// az names that hold this table. Empty = all of them (flat).
+	repeated string az = 1;
+	// az names allowed to ORIGINATE writes. Empty = any participating az.
+	// A table can therefore be readable in an az that may not write it.
+	repeated string writable_az = 2;
+	// do not send this table's changes up / down a link. Both false by default:
+	// sent everywhere.
+	bool no_up = 3;
+	bool no_down = 4;
+}

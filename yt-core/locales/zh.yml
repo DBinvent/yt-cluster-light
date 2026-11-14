@@ -1,0 +1,117 @@
+_version: 1
+# [i18n] yt-core's messages in Chinese: one file per language (en, ru, and - not reviewed -
+# fr, de, zh, ja), every key in each. An error's message starts with its code, the same in
+# every language (src/i18n.rs tests it) - after a SQLSTATE such as 0A000: when it has one,
+# which the extension reads at position 0. YT light's codes have three digits, YT-Ennn:
+# yt-core-proto YT-E001 to YT-E029, yt-core YT-E030 and up. YT Cluster's own have four,
+# YT-Ennnn. ytserv reads these files too, by symlink (its locales/light.<lang>.yml): what a
+# shared link file says is the same there, under the same code.
+
+# === the shared link files (src/core/signin.rs, route.rs): the light node and ytserv ===
+link-no-target-above: "YT-E030 上层集群中没有可供登录的节点"
+link-no-target-az: "YT-E031 az %{az} 中没有可供登录的节点"
+# the dial rules' reasons: the tail of the message that refuses a dial - no code of their own
+link-rule-lower: "不向 LOWER 集群拨号：它向我们登录，而我们持有的是它的验证密钥，而不是它的地址"
+link-rule-upper-member: "规则 1：只有本集群的 leader 向上拨号；成员没有任何需要跨越边界拨号的内容"
+link-rule-upper-leader: "规则 1：向上的链接必须避开上层集群的 leader - 请选择普通节点"
+link-rule-neighbor: "规则 2：相邻链接只允许 leader 到 leader"
+
+# === the light node (src/core/store.rs, calls.rs) ===
+light-leaf-no-down: "YT-E032 light 节点是叶子节点：不向下传递任何内容"
+# a call's failure, the tail of the message that names the turn - no code of their own
+light-call-tls: "%{host} (TLS): %{error}"
+light-call-then-plaintext: "%{first} - 然后使用明文: %{error}"
+
+# === yt-light: its command line and its start (src/main.rs) ===
+light-usage-about: "yt-light - YT light：这是服务于本 PostgreSQL 实例中一个数据库的 YT 节点，是 YT 集群的叶子节点。\n它为 yt_cluster 扩展提供 unix 套接字服务，保留数据库已提交但上层集群尚未拿到的内容，\n并应用从上层下发的内容。\n"
+light-usage-args: "  yt-light [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] [-v | -q]\n\n  <url>               它服务的数据库，经由实例的 unix 套接字：\n                      postgresql://postgres@localhost/appdb?host=/var/run/postgresql\n  --config            其配置表（默认：扩展的 yt_config）\n  --file              key=value 行：下面的设置，位于配置表之前\n  --uuid              本节点的 uuid（默认：它在配置表中保存的那个）\n  -v, -q              调试，或仅警告；-h 显示本文本，-V 显示版本\n"
+light-usage-settings: "设置 - --file 中的一行 `name=value`，或配置表中的一行，模块 L：\n  upper       要拨号的上层集群节点（http://host:port），以逗号分隔，依次尝试\n  upper_root  上层集群的根，SHA256:... - 即其 CA，如 `ytctl --skv-status` 所打印的\n              在那里；仅采信链接到它的内容，且只取自该集群\n  cluster_db  本数据库在上层集群中的名称（默认：与自身相同）\n  key_dir     本节点保存其 CA 的位置（默认：~/.yt-light/<本节点的 uuid>）\n  lang        其消息的语言：en, ru, fr, de, zh 或 ja（默认：数据库的语言）\n\n  INSERT INTO yt_config (name, module, value) VALUES ('upper', 'L', 'http://node1:7421');\n"
+light-usage-link: "无 az：light 节点无需设置 az。它登录所经由的节点会把它当作自己的 az 中的一个节点\n（yt_info 显示是哪一个），并把该 az 所持有的内容发给它。\n\n链接：上层集群凭其 CA 接纳本节点，该 CA 在首次启动时生成。本节点登录后，其操作员在集群的\nleader 上批准该 CA：`ytctl\n--skv-approve <uuid> --fingerprint <fp>`，指纹由 yt-light 在启动时记录。随后\n集群为其签署，此后对它的每次调用都是 TLS。\n\n错误：每条都以代码开头，YT-Ennn - 其前有 SQLSTATE（如 0A000:）时，代码位于其后；\nhttps://docs.dbinvent.com/errors/<code> 对其作出解释。\n"
+light-args: "YT-E033 命令行：%{error}"
+light-no-setting: "YT-E034 没有设置 %{name}：--file 中的一行 `%{name}=...`，或配置表中的一行，模块 L：INSERT INTO yt_config (name, module, value) VALUES ('%{name}', 'L', '...')"
+light-no-key-dir: "YT-E035 未设置 key_dir 且没有 HOME：本节点保存其 CA 的位置 - --file 中的一行 `key_dir=...`，或配置表中的一行，模块 L"
+light-pid-file: "YT-E036 pid 文件 %{file}：%{error}"
+light-another-node: "YT-E037 另一个节点正在服务 %{socket}：进程 %{pid}（其 pid 文件 %{file}）"
+light-pid-race: "YT-E038 pid 文件 %{file}：被同时启动的另一次启动占用"
+light-socket: "YT-E039 unix 套接字：%{error}"
+light-socket-stopped: "YT-E040 unix 套接字服务已停止：%{error}"
+light-ca: "YT-E041 本节点的 CA：%{error}"
+light-no-root: "YT-E042 未设置 upper_root：上层集群交付的任何内容都不被采信，因此无法建立到它的 TLS - 请设置其 CA 的 SHA256:...，如 `ytctl --skv-status` 在那里打印的"
+light-start: "yt-light %{version}：位于 %{hosts} 的集群的叶子节点"
+light-ca-line: "本节点的 CA %{fingerprint}（保存于 %{dir}）：上层集群在其 leader 上批准它 - ytctl --skv-approve %{uuid} --fingerprint %{fingerprint}"
+light-tls-line: "链接 TLS：%{status}"
+light-serving: "正在服务数据库 %{db}（上层为 %{cluster_db}），位于 %{socket}，节点 %{uuid}"
+light-stopped: "yt-light 已停止：%{why}"
+light-signal-interrupt: "中断"
+light-signal-terminate: "终止"
+light-signal-hangup: "挂起"
+light-signal-none: "没有信号处理程序"
+
+# === yt-light: the link to the cluster above, a turn a second (src/main.rs) ===
+light-ask-failed: "YT-E043 询问上层集群的位置：%{error}"
+light-fetch-failed: "YT-E044 从上层集群获取：%{error} - 接下来尝试下一个节点"
+light-apply-failed: "YT-E045 应用来自上层集群的一批数据：%{error} - 下一轮再试"
+light-collect-failed: "YT-E046 收集需要上送的内容：%{error}"
+light-batch-refused: "YT-E047 上层集群拒绝了一批数据：%{error}"
+light-deliver-failed: "YT-E048 向上层集群投递：%{error}"
+light-resolve-failed: "YT-E049 结算已预备的事务：%{error}"
+light-sweep-failed: "YT-E050 未结束的事务：%{error}"
+light-signin-refused: "YT-E051 上层集群拒绝了登录：%{reason}"
+light-signin-failed: "YT-E052 登录上层集群：%{error}"
+light-tls-problem: "YT-E053 链接 TLS：%{error}"
+light-tls-news: "链接 TLS：%{text}"
+light-fine-again: "%{what}：已恢复正常"
+light-settled: "%{count} 个已预备的事务已按其所在数据库的决定结算"
+light-swept: "从未在此预备的事务：%{sent} 个已提交并发送；%{dropped} 个已丢弃"
+light-signed-in-flat: "已登录上层集群：它没有 az"
+light-signed-in-az: "已登录上层集群：被当作 az %{az} 中的节点接收，该 az 即登录所经由的节点的 az"
+
+# === the unix socket the extension calls (src/service.rs) ===
+light-chmod: "YT-E054 无法对 %{path} 执行 chmod 0777：%{error}"
+light-row-no-table: "YT-E055 一行没有其所属的表"
+light-one-database: "0A000: YT-E056 YT light 只服务一个数据库（%{db}）；每个实例服务多个数据库需要完整版本"
+light-full-version: "0A000: YT-E057 %{what} 需要 YT Cluster 的完整版本"
+light-unknown-completion: "YT-E058 未知的完成方式 %{value}"
+light-complete-failed: "YT-E059 完成 tx=%{tx}：%{error}"
+light-modify-refused: "modify: %{why} - %{table} 中的一行"
+light-info-refused: "info: '%{what}' 被拒绝 - 属于完整版本"
+light-info-az-none: "none: 上层集群没有 az"
+light-info-az-shared: "%{az} - 上层节点的 az，共享；light 节点没有自己的 az"
+light-info-az-untold: "尚未告知：未授予登录"
+light-info-light: "YT light：一个数据库，是 YT 集群的叶子节点"
+
+# === the store, PostgreSQL (src/pg.rs) ===
+light-db-url: "YT-E060 数据库 url：%{error}"
+light-db-connect: "YT-E061 连接数据库：%{error}"
+light-db: "YT-E062 数据库，%{what}：%{error}"
+light-uuid-row: "YT-E063 配置表中的行 `uuid`，模块 L：%{error}"
+light-no-attnum: "YT-E064 %{table}：没有 attnum 为 %{attnum} 的列"
+light-no-column: "YT-E065 %{table}：此处没有列 %{column}"
+light-keyless-no-old: "YT-E066 %{table}：没有键的表中的一行，且没有其旧映像"
+light-no-key-value: "YT-E067 %{table}：没有键列 %{column} 的值"
+light-statement: "YT-E068 %{sql}：%{error}"
+
+# === the CA and the link's TLS (src/tls.rs) ===
+light-tls-internal: "YT-E069 TLS，%{what}：%{error}"
+light-file: "YT-E070 %{path}：%{error}"
+light-ca-mismatch: "YT-E071 %{dir}：ca.crt 不是 ca.key 的证书"
+light-ca-key-lost: "YT-E072 %{dir}：有 ca.crt 但没有 ca.key - CA 密钥已丢失：请将 ca.crt 移开以生成新的 CA，上层集群会再次批准它"
+light-ca-no-key: "YT-E073 该 CA 没有密钥"
+light-root-not-pinned: "YT-E074 未为上层集群固定根（设置 upper_root：其 CA 的 SHA256:...，如 `ytctl --skv-status` 在那里打印的）- 它交付的任何内容都不被采信，因此无法建立到它的 TLS"
+light-root-no-chain: "YT-E075 上层集群交付的根中没有任何一个链接到已固定的根（%{pin}） - 未采信"
+light-ca-not-ours: "YT-E076 来自上层集群、经其签署的 CA 不是本节点的，或不链接到其任何根 - 未采信"
+light-no-link-service: "YT-E077 %{host} 没有 Link 服务：它是 1.21 之前的 YT Cluster 节点，轻量节点无法通过它登录，或者根本不是 YT Cluster 节点 - 将尝试 upper 中的下一个节点"
+light-leader-before-link: "YT-E078 上层集群拒绝了登录：%{reason} - 其领导节点运行的是 1.21 之前的 YT Cluster，不接纳轻量节点；登录会重试，待该领导节点运行 1.21 或更高版本后即可通过"
+light-turso-no-table: "YT-E079 此数据库中没有表 %{table}"
+light-turso-no-key: "YT-E080 %{table} 没有主键：其行经由链路传输的表需要主键"
+light-turso-value: "YT-E081 %{value} 不是声明为 %{decl} 的列的值"
+light-sqlite-no-file: "YT-E082 数据库 %{db} 没有文件 - 在内存中或是临时的 - 无法链接：请从文件打开一个数据库"
+light-sqlite-no-upper: "YT-E083 没有可链接的上层集群：请设置 upper（yt_config，模块 L），或调用 yt_link(upper, upper_root)"
+light-sqlite-in-tx: "YT-E084 在事务中调用 yt_link：回滚会在链接运行时带走其设置和本节点的 uuid - 请在事务之外调用"
+light-sync-value: "YT-E085 %{value} 不是 A 行的值：请给出 ytctl --encode-table-cfg 打印的值，或留空表示双向"
+light-sqlite-bad-root: "YT-E086 upper_root %{value} 不是 CA 指纹：应为 SHA256: 加 43 个字符，如 ytctl --skv-status 所打印"
+light-tls-status-ready: "已由上层集群签署，持有 %{count} 个根：调用使用 TLS"
+light-tls-status-no-pin: "未固定 upper_root：上层集群交付的任何内容都不被采信"
+light-tls-status-waiting: "等待上层集群批准并签署它"
+light-tls-countersigned: "本节点的 CA 已由上层集群签署"
+light-tls-roots-held: "已持有上层集群的 %{count} 个根"

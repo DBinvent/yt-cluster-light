@@ -22,3 +22,17 @@ rustc-ice-*.txt
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
+
+# the extension's build outputs (ytpgc/Makefile, build-all-ytpgc.sh)
+/ytpgc/dist/
+/ytpgc/*.so
+/ytpgc/*.a
+# written from yt_cluster.control.in with the version (make, build-all-ytpgc.sh)
+/ytpgc/yt_cluster.control
+/ytpgc/src/**/*.o
+/ytpgc/src/**/*.bc
+/.c*
+/tdb/
+/.idea
+**/__pycache__/
+ytpgc/src/proto/.stamp

@@ -1,0 +1,72 @@
+name: coverage
+
+# [coverage] The whole `cargo test` of the workspace - yt-core-proto, yt-core and yt-light,
+# the link tests against a cluster node served in the same process - and its line coverage,
+# the generated gRPC code (protogen) left out. The tests that need a PostgreSQL with the
+# extension (yt-core tests/pg_live.rs, pg_service.rs, yt_light_bin.rs) run here: the extension
+# is built with `make`, and each test starts a throwaway PostgreSQL with it (tests/fixture,
+# YT_LIGHT_EXT_SO). The badge is our own, no third party: drawn
+# from lcov.info and kept on the `badges` branch, which the README shows. The target is 80% of
+# the lines (owner, 2026-11-13): the last step fails the run under it, the badge written first.
+#
+# The crates take diff-doc-rs by path, cloned beside this repository: the run checks out
+# both, this one under yt-cluster-light/.
+on:
+  push:
+    branches-ignore: ["dependabot/**"]   # their pull request runs it
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # the coverage badge's push, to the badges branch
+    defaults:
+      run:
+        # bash -eo pipefail: GitHub's default shell has no pipefail, and a piped step
+        # (cargo geiger | tee) would hide the command's failure
+        shell: bash
+        working-directory: yt-cluster-light
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: yt-cluster-light
+      - uses: actions/checkout@v7
+        with:
+          repository: vkrinitsyn/diff-doc-rs
+          path: diff-doc-rs
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      # protoc for the protos, the OpenSSL headers for yt-light's TLS; PostgreSQL and its server
+      # headers, and what the extension builds with, for the tests on a throwaway PostgreSQL
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
+          postgresql postgresql-server-dev-16 protobuf-c-compiler libprotobuf-c-dev libcurl4-openssl-dev
+      - name: the extension, for the tests that run PostgreSQL
+        run: |
+          make -C ytpgc
+          echo "YT_LIGHT_EXT_SO=$(ls "$PWD"/ytpgc/yt_cluster*-pg16-*.so)" >> "$GITHUB_ENV"
+          echo "PG_BIN=$(/usr/lib/postgresql/16/bin/pg_config --bindir)" >> "$GITHUB_ENV"
+      - run: cargo llvm-cov --workspace --no-fail-fast --ignore-filename-regex protogen --lcov --output-path lcov.info
+      # [coverage] our own badge, no third party: lcov.info's line coverage, drawn by
+      # .github/coverage-badge.py and kept on the `badges` branch - one commit, replaced
+      # each time - which the README shows. On a push to the default branch only: a pull
+      # request measures, no more
+      - name: coverage badge
+        if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pct=$(python3 .github/coverage-badge.py lcov.info /tmp/badges/coverage.svg)
+          cd /tmp/badges
+          git init -q -b badges
+          git add coverage.svg
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "coverage ${pct}%"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges
+      # the check, on every run - a pull request's too: at least 80% of the lines
+      - name: coverage check, 80% of the lines
+        run: python3 .github/coverage-badge.py lcov.info /tmp/coverage-check.svg --min 80

@@ -1,0 +1,19 @@
+# Exclude everything by default, then whitelist what the extension's Docker builds need
+# (ytpgc/Dockerfile*: the context is this repo's root).
+**
+
+!VERSION
+!yt-core-proto/proto/
+!yt-core-proto/proto/**
+!ytpgc/
+!ytpgc/**
+
+# Re-exclude build artifacts inside ytpgc to keep context small
+ytpgc/dist/
+ytpgc/src/*.o
+ytpgc/src/*.bc
+ytpgc/src/proto/*.o
+ytpgc/src/proto/*.bc
+ytpgc/*.so
+ytpgc/*.a
+ytpgc/yt_cluster.control
