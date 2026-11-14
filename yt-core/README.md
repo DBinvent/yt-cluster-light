@@ -227,9 +227,8 @@ and [yt-sqlite](../yt-sqlite/README.md), the SQLite loadable extension, on SQLit
 
 ## Building
 
-The crate needs `protoc`, and diff-doc-rs cloned next to this repository (see
-[yt-core-proto](../yt-core-proto/README.md#building)). yt-light also needs the OpenSSL
-headers (`libssl-dev`).
+The crate needs `protoc` (see [yt-core-proto](../yt-core-proto/README.md#building)).
+yt-light also needs the OpenSSL headers (`libssl-dev`).
 
 ```
 cargo build --release      # yt-light at target/release/yt-light

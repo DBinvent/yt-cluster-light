@@ -26,8 +26,9 @@ prost = { version = "^0.14", features = ["derive"] }
 rust-i18n = "^4"
 serde = { version = "^1.0", features = ["derive"] }
 uuid = { version = "^1.23", features = ["v4"] }
-# diff_doc.proto's Rust types (its `proto` feature): base.proto's VarType carries a Mismatches
-diff_doc = { path = "../../diff-doc-rs", default-features = false, features = ["proto"] }
+# diff_doc.proto's Rust types (its `proto` feature): base.proto's VarType carries a Mismatches.
+# From crates.io: 1.1 carries the feature (2026-11-14), no sibling checkout of diff-doc-rs
+diff_doc = { version = "^1.1", default-features = false, features = ["proto"] }
 
 [build-dependencies]
 tonic-prost-build = { version = "^0.14" }

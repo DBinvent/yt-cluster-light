@@ -2,9 +2,8 @@
 # run. Security updates are switched on in the repository's settings (Code security), not
 # here.
 #
-# The crates take diff-doc-rs by path (../diff-doc-rs) until a release of it on crates.io
-# carries its `proto` feature; Dependabot does not see that sibling, and its cargo updates
-# fail to resolve until yt-core-proto takes diff_doc from crates.io.
+# Every crate's dependencies come from crates.io (diff_doc too, 1.1 on): its cargo updates
+# resolve. Its earlier failures were diff_doc's path to a sibling checkout.
 version: 2
 updates:
   - package-ecosystem: cargo

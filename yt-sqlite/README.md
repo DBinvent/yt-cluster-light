@@ -104,9 +104,8 @@ As in the Turso form:
 
 ## Building
 
-The extension needs diff-doc-rs cloned next to this repository (see
-[yt-core-proto](../yt-core-proto/README.md#building)), and perl for the OpenSSL it builds in
-(NASM too, on Windows).
+The extension needs perl for the OpenSSL it builds in (NASM too, on Windows); diff_doc comes
+from crates.io (see [yt-core-proto](../yt-core-proto/README.md#building)).
 
 ```
 cargo build --release      # target/release/libyt.so (.dylib, yt.dll)

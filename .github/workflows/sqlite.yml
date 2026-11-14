@@ -10,8 +10,8 @@ name: sqlite
 # Linux builds in a manylinux_2_28 container: glibc 2.28 and later, RHEL 8 on. OpenSSL is built
 # into the extension (openssl's `vendored`): perl for it everywhere, NASM on Windows.
 #
-# The crates take diff-doc-rs by path, cloned beside this repository: each job checks out
-# both, this one under yt-cluster-light/.
+# diff_doc comes from crates.io (1.1 on, its `proto` feature): each job checks out this
+# repository alone, under yt-cluster-light/.
 on:
   push:
     branches-ignore: ["dependabot/**"]   # their pull request runs it
@@ -33,10 +33,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           path: yt-cluster-light
-      - uses: actions/checkout@v7
-        with:
-          repository: vkrinitsyn/diff-doc-rs
-          path: diff-doc-rs
       - uses: dtolnay/rust-toolchain@stable
       - run: sudo apt-get update && sudo apt-get install -y libssl-dev
       - name: one version - VERSION, yt-sqlite's, sqlpkg.json's
@@ -76,10 +72,6 @@ jobs:
       - uses: actions/checkout@v7
         with:
           path: yt-cluster-light
-      - uses: actions/checkout@v7
-        with:
-          repository: vkrinitsyn/diff-doc-rs
-          path: diff-doc-rs
       - uses: dtolnay/rust-toolchain@stable
       - uses: ilammy/setup-nasm@v1
         if: runner.os == 'Windows'

@@ -102,7 +102,14 @@ async fn a_sqlite_database_links_and_its_table_syncs_both_ways() {
 	// what came down did not go back up: the outbox holds the application's row alone
 	let n: i64 = c.query_row("SELECT count(*) FROM yt_outbox", [], |r| r.get(0)).unwrap();
 	assert_eq!(n, 1);
-	let i = info(&c);
+	// the link's status is written at the end of its turn: the rows can cross in the turn
+	// that signs in, a moment before yt_info says it is in
+	let mut i = info(&c);
+	for _ in 0..50 {
+		if i["granted"] == true { break }
+		tokio::time::sleep(Duration::from_millis(100)).await;
+		i = info(&c);
+	}
 	assert_eq!(i["linked"], true, "{i}");
 	assert_eq!(i["granted"], true, "{i}");
 	assert_eq!(i["cluster_db"], "appdb", "{i}");

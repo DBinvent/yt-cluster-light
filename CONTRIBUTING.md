@@ -45,10 +45,13 @@ A security problem is not reported in a public issue: write to
 
 ## Build and test
 
-diff-doc-rs is cloned beside this repository - yt-core-proto takes its types by path:
+yt-core-proto takes diff_doc's types from crates.io (1.1 on). To try a change of diff-doc-rs
+here first, point the workspace at a clone of it, uncommitted:
 
 ```
-git clone https://github.com/vkrinitsyn/diff-doc-rs.git   # in the directory that holds this clone
+# Cargo.toml, the workspace's
+[patch.crates-io]
+diff_doc = { path = "../diff-doc-rs" }
 ```
 
 `protoc` and the protobuf includes are needed (`yt-core-proto/build.rs`), the OpenSSL

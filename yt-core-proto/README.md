@@ -30,9 +30,8 @@ server takes these same types, so each message has one definition.
 
 ## Building
 
-The crate needs `protoc`. It also needs diff-doc-rs, cloned next to this repository, at a
-version that has the `proto` feature: it takes `diff_doc` by path until a release on
-crates.io carries that feature. `build.rs` compiles `proto/base.proto`, `db.proto` and
+The crate needs `protoc`. It takes `diff_doc` from crates.io, 1.1 or later: the release that
+carries its `proto` feature. `build.rs` compiles `proto/base.proto`, `db.proto` and
 `link.proto`, and takes the `diff_doc` package's types from that crate.
 
 ```
