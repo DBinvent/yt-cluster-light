@@ -1,4 +1,4 @@
-# Contributing to yt-cluster-light (ytcl)
+# Contributing to yt-cluster-lite (ytcl)
 
 Thank you for helping. ytcl is licensed MIT; a contribution is accepted under the same
 terms (see [LICENSE](LICENSE)).
@@ -8,7 +8,7 @@ terms (see [LICENSE](LICENSE)).
 Open an issue on GitHub for a bug or a feature request. For a bug, say which part it is
 about - the PostgreSQL extension (`ytpgc`), the protos and their types (`yt-core-proto`)
 or the light node (`yt-core`) - and give its version (`VERSION`; `select yt_info('T')`
-for an installed extension, `yt-light -V` for the service), the PostgreSQL major and the
+for an installed extension, `yt-lite -V` for the service), the PostgreSQL major and the
 platform (glibc, EL9, musl), and the
 smallest sequence of statements or calls that shows it: what you did, what you expected,
 and what you got.
@@ -55,14 +55,14 @@ diff_doc = { path = "../diff-doc-rs" }
 ```
 
 `protoc` and the protobuf includes are needed (`yt-core-proto/build.rs`), the OpenSSL
-headers for yt-light, and for the extension protobuf-c, libcurl and the PostgreSQL server
+headers for yt-lite, and for the extension protobuf-c, libcurl and the PostgreSQL server
 headers: `apt install protobuf-compiler libprotobuf-dev libssl-dev protobuf-c-compiler
 libprotobuf-c-dev libcurl4-openssl-dev postgresql-server-dev-<major>`.
 
 ```
 cargo test                               # yt-core-proto and yt-core
-cargo build --release --bin yt-light     # the service beside one PostgreSQL instance
-YT_LIGHT_TEST_DB='postgresql://...' cargo test --test pg_live -- --ignored   # its store on a throwaway database
+cargo build --release --bin yt-lite     # the service beside one PostgreSQL instance
+YT_LITE_TEST_DB='postgresql://...' cargo test --test pg_live -- --ignored   # its store on a throwaway database
 cd ytpgc && make                         # the extension for this host's PostgreSQL
 sudo make install                        # then CREATE EXTENSION yt_cluster in a database
 psql -d <db> -f test.sql                 # the diff functions: every line prints t

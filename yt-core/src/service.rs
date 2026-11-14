@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! yt-light's unix socket: what the PostgreSQL extension calls (db.proto's LocalGrpc),
+//! yt-lite's unix socket: what the PostgreSQL extension calls (db.proto's LocalGrpc),
 //! at `<unix_socket_directories>/.s.YT.<port>` - one service per instance.
 //!
 //! A row (`modify`) waits in memory under its transaction; the transaction's prepare

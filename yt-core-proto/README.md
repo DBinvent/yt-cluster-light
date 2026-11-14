@@ -1,6 +1,6 @@
 # Embedding a big cluster node capabilities with bi-directional sync of selected (portion) table right into your app.
 
-`yt-core-proto` is the wire format of YT Cluster light: the protos that a YT node, its
+`yt-core-proto` is the wire format of YT Cluster lite: the protos that a YT node, its
 PostgreSQL extension and the zone above it exchange, with their Rust types. YT Cluster's
 server takes these same types, so each message has one definition.
 
@@ -25,7 +25,7 @@ server takes these same types, so each message has one definition.
   table (`ClusterConfigNames`).
 - **`i18n` and `locales/`:** the crate's messages in six languages (en, ru, fr, de, zh,
   ja), said in the language the binary set with `rust_i18n::set_locale`. An error's message
-  starts with its code: `YT-E001` to `YT-E029` here. Three digits are YT light's; YT
+  starts with its code: `YT-E001` to `YT-E029` here. Three digits are YT lite's; YT
   Cluster's own codes have four.
 
 ## Building

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! yt-light's service (crate::service) under the extension, on a throwaway PostgreSQL
-//! (tests/fixture, YT_LIGHT_EXT_SO; skipped without it): yt_setup syncs a table and captures
+//! yt-lite's service (crate::service) under the extension, on a throwaway PostgreSQL
+//! (tests/fixture, YT_LITE_EXT_SO; skipped without it): yt_setup syncs a table and captures
 //! it, a transaction's rows reach the outbox through the extension's calls and go up to a node
 //! above served in this process, yt_info() answers, and a table without an A row keeps its
 //! writes here.

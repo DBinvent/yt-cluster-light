@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-# ─── Build context: the repo root (yt-cluster-light/) ────────────────────────
+# ─── Build context: the repo root (yt-cluster-lite/) ────────────────────────
 # The extension for glibc 2.34 - RHEL 9 and its rebuilds (Alma, Rocky, Oracle
 # Linux 9), Amazon Linux 2023 - and any newer glibc. PostgreSQL from the PGDG
 # yum repository; artifacts named like the apt builds (Dockerfile), e.g.

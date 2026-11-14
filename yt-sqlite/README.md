@@ -3,7 +3,7 @@
 A SQLite loadable extension, `yt`. Load it into SQLite, set up the tables to sync, and link
 the database file to a YT cluster. The rows written to those tables go up to the cluster.
 What the cluster holds of them comes down. It syncs both ways, as
-[yt-light](../yt-core/README.md#yt-light) does beside PostgreSQL and the
+[yt-lite](../yt-core/README.md#yt-lite) does beside PostgreSQL and the
 [Turso form](../yt-core/README.md#inside-an-application-turso) does inside an application.
 All three use one store: `yt-core/src/lite.rs`.
 
@@ -53,14 +53,14 @@ The functions can be called only from SQL you run yourself, not from a trigger o
 
 ### Settings
 
-The settings are rows of `yt_config` in module L, as yt-light has them:
+The settings are rows of `yt_config` in module L, as yt-lite has them:
 
 | Name | What it is |
 |---|---|
 | `upper` | the nodes of the cluster above, as `http://host:port`, comma separated and tried in turn |
 | `upper_root` | the root of the cluster above, `SHA256:` and 43 characters: its CA, as `ytctl --skv-status` prints it there. Only what chains to it is taken. Another form is refused (YT-E086). |
 | `cluster_db` | this database's name in the cluster above (default: the file's name without its extension) |
-| `key_dir` | where this node keeps its CA (default: `~/.yt-light/<uuid>`) |
+| `key_dir` | where this node keeps its CA (default: `~/.yt-lite/<uuid>`) |
 | `uuid` | this node's id: made at the first link and kept here |
 | `lang` | the language of its messages: `en`, `ru`, `fr`, `de`, `zh` or `ja` |
 

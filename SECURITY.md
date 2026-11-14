@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Security fixes go into the latest release of YT Cluster light: yt-light, the `yt_cluster`
+Security fixes go into the latest release of YT Cluster lite: yt-lite, the `yt_cluster`
 PostgreSQL extension and the crates here, and so into YT Cluster's packages, which carry
 them. Upgrade to the latest release to get them.
 
@@ -14,9 +14,9 @@ them. Upgrade to the latest release to get them.
 ## Reporting a vulnerability
 
 Do not open a public issue for a security problem. Report it by email to
-**support@dbinvent.com**, with "YT light security" in the subject, and include:
+**support@dbinvent.com**, with "YT lite security" in the subject, and include:
 
-- the version (`yt-light -V`, or `select extversion from pg_extension where extname =
+- the version (`yt-lite -V`, or `select extversion from pg_extension where extname =
   'yt_cluster'` for the extension) and how it was installed;
 - what an attacker can do, and the steps or a proof of concept that show it;
 - any fix or mitigation you know of.

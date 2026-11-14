@@ -1813,7 +1813,7 @@ checksum = "8c3b93199df0ab874cdf0c6a94f0a0dc3423fe41f1cafb62b8bd7b1deb277aef"
 name = "yt-core"
 version = "1.21.0"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "hyper-util",
  "openssl",
  "prost",

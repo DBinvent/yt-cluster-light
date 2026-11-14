@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-# ─── Build context: the repo root (yt-cluster-light/) ────────────────────────
+# ─── Build context: the repo root (yt-cluster-lite/) ────────────────────────
 # Generic parametric Dockerfile - override via --build-arg (defaults: PG 16, Ubuntu 22.04)
 #
 # Build:

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
 //! The light node inside an application, on Turso: the application's own database is the
-//! node's store (yt-light.md 8) - crate::lite's, on a Turso connection of this node's own.
+//! node's store (yt-lite.md 8) - crate::lite's, on a Turso connection of this node's own.
 //! What it captures, how rows come down, which tables sync: crate::lite.
 use std::time::Duration;
 

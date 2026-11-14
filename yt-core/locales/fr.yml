@@ -2,7 +2,7 @@ _version: 1
 # [i18n] yt-core's messages in French: one file per language (en, ru, and - not reviewed -
 # fr, de, zh, ja), every key in each. An error's message starts with its code, the same in
 # every language (src/i18n.rs tests it) - after a SQLSTATE such as 0A000: when it has one,
-# which the extension reads at position 0. YT light's codes have three digits, YT-Ennn:
+# which the extension reads at position 0. YT lite's codes have three digits, YT-Ennn:
 # yt-core-proto YT-E001 to YT-E029, yt-core YT-E030 and up. YT Cluster's own have four,
 # YT-Ennnn. ytserv reads these files too, by symlink (its locales/light.<lang>.yml): what a
 # shared link file says is the same there, under the same code.
@@ -22,11 +22,11 @@ light-leaf-no-down: "YT-E032 un nœud light est une feuille : rien ne descend de
 light-call-tls: "%{host} (TLS): %{error}"
 light-call-then-plaintext: "%{first} - puis en clair: %{error}"
 
-# === yt-light: its command line and its start (src/main.rs) ===
-light-usage-about: "yt-light - YT light: un nœud YT pour une base de cette instance PostgreSQL, une feuille\nd'un cluster YT. Il sert le socket unix de l'extension yt_cluster, garde ce que la base\nvalide jusqu'à ce que le cluster au-dessus l'ait, et applique ce qui descend.\n"
-light-usage-args: "  yt-light [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] [-v | -q]\n\n  <url>               la base qu'il sert, par le socket unix de l'instance :\n                      postgresql://postgres@localhost/appdb?host=/var/run/postgresql\n  --config            sa table de configuration (par défaut : yt_config de l'extension)\n  --file              des lignes clé=valeur : les réglages ci-dessous, avant la table\n  --uuid              l'uuid de ce nœud (défaut : celui de la table de configuration)\n  -v, -q              débogage, ou avertissements seulement ; -h ce texte, -V la version\n"
-light-usage-settings: "Réglages - une ligne `name=value` de --file, ou une ligne de la table de configuration, module L :\n  upper       nœuds du cluster au-dessus (http://host:port), séparés par ',', essayés en ordre\n  upper_root  racine du cluster au-dessus, SHA256:... de son CA, affiché par `ytctl --skv-status`\n              là-bas ; seul ce qui s'y rattache est pris de ce cluster\n  cluster_db  nom de cette base dans le cluster au-dessus (par défaut : le sien)\n  key_dir     où ce nœud garde son CA (par défaut : ~/.yt-light/<uuid de ce nœud>)\n  lang        la langue de ses messages : en, ru, fr, de, zh ou ja (par défaut : celle de la base)\n\n  INSERT INTO yt_config (name, module, value) VALUES ('upper', 'L', 'http://node1:7421');\n"
-light-usage-link: "Pas d'az : un nœud light n'en a aucune à fixer. Le nœud par lequel il se connecte le prend\npour un nœud de sa propre az - yt_info indique laquelle - et lui envoie ce que cette az contient.\n\nLe lien : le cluster au-dessus admet ce nœud par son CA, créé au premier démarrage. Son opérateur\napprouve le CA sur le leader du cluster une fois que ce nœud s'est connecté - `ytctl\n--skv-approve <uuid> --fingerprint <fp>`, l'empreinte que yt-light journalise au démarrage. Ensuite\nle cluster la contresigne, et chaque appel vers lui se fait en TLS.\n\nErreurs : chacune commence par son code, YT-Ennn - après un SQLSTATE tel que 0A000: s'il y en a un ;\nhttps://docs.dbinvent.com/errors/<code> l'explique.\n"
+# === yt-lite: its command line and its start (src/main.rs) ===
+light-usage-about: "yt-lite - YT lite: un nœud YT pour une base de cette instance PostgreSQL, une feuille\nd'un cluster YT. Il sert le socket unix de l'extension yt_cluster, garde ce que la base\nvalide jusqu'à ce que le cluster au-dessus l'ait, et applique ce qui descend.\n"
+light-usage-args: "  yt-lite [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] [-v | -q]\n\n  <url>               la base qu'il sert, par le socket unix de l'instance :\n                      postgresql://postgres@localhost/appdb?host=/var/run/postgresql\n  --config            sa table de configuration (par défaut : yt_config de l'extension)\n  --file              des lignes clé=valeur : les réglages ci-dessous, avant la table\n  --uuid              l'uuid de ce nœud (défaut : celui de la table de configuration)\n  -v, -q              débogage, ou avertissements seulement ; -h ce texte, -V la version\n"
+light-usage-settings: "Réglages - une ligne `name=value` de --file, ou une ligne de la table de configuration, module L :\n  upper       nœuds du cluster au-dessus (http://host:port), séparés par ',', essayés en ordre\n  upper_root  racine du cluster au-dessus, SHA256:... de son CA, affiché par `ytctl --skv-status`\n              là-bas ; seul ce qui s'y rattache est pris de ce cluster\n  cluster_db  nom de cette base dans le cluster au-dessus (par défaut : le sien)\n  key_dir     où ce nœud garde son CA (par défaut : ~/.yt-lite/<uuid de ce nœud>)\n  lang        la langue de ses messages : en, ru, fr, de, zh ou ja (par défaut : celle de la base)\n\n  INSERT INTO yt_config (name, module, value) VALUES ('upper', 'L', 'http://node1:7421');\n"
+light-usage-link: "Pas d'az : un nœud light n'en a aucune à fixer. Le nœud par lequel il se connecte le prend\npour un nœud de sa propre az - yt_info indique laquelle - et lui envoie ce que cette az contient.\n\nLe lien : le cluster au-dessus admet ce nœud par son CA, créé au premier démarrage. Son opérateur\napprouve le CA sur le leader du cluster une fois que ce nœud s'est connecté - `ytctl\n--skv-approve <uuid> --fingerprint <fp>`, l'empreinte que yt-lite journalise au démarrage. Ensuite\nle cluster la contresigne, et chaque appel vers lui se fait en TLS.\n\nErreurs : chacune commence par son code, YT-Ennn - après un SQLSTATE tel que 0A000: s'il y en a un ;\nhttps://docs.dbinvent.com/errors/<code> l'explique.\n"
 light-args: "YT-E033 la ligne de commande : %{error}"
 light-no-setting: "YT-E034 aucun réglage %{name} : une ligne `%{name}=...` de --file, ou une ligne de la table de configuration, module L : INSERT INTO yt_config (name, module, value) VALUES ('%{name}', 'L', '...')"
 light-no-key-dir: "YT-E035 key_dir n'est pas défini et il n'y a pas de HOME : où garder le CA de ce nœud - une ligne `key_dir=...` de --file, ou une ligne de la table de configuration, module L"
@@ -37,17 +37,17 @@ light-socket: "YT-E039 le socket unix : %{error}"
 light-socket-stopped: "YT-E040 le serveur du socket unix s'est arrêté : %{error}"
 light-ca: "YT-E041 le CA de ce nœud : %{error}"
 light-no-root: "YT-E042 upper_root n'est pas défini : rien de ce que le cluster au-dessus remet n'est pris, donc pas de TLS vers lui - indiquez le SHA256:... de son CA, tel que `ytctl --skv-status` l'affiche là-bas"
-light-start: "yt-light %{version} : une feuille du cluster à %{hosts}"
+light-start: "yt-lite %{version} : une feuille du cluster à %{hosts}"
 light-ca-line: "CA de ce nœud %{fingerprint} (gardé dans %{dir}) : le cluster au-dessus l'approuve sur son leader - ytctl --skv-approve %{uuid} --fingerprint %{fingerprint}"
 light-tls-line: "TLS du lien : %{status}"
 light-serving: "sert la base %{db} (comme %{cluster_db} au-dessus) sur %{socket}, nœud %{uuid}"
-light-stopped: "yt-light arrêté : %{why}"
+light-stopped: "yt-lite arrêté : %{why}"
 light-signal-interrupt: "interruption"
 light-signal-terminate: "arrêt"
 light-signal-hangup: "coupure de terminal"
 light-signal-none: "aucun gestionnaire de signal"
 
-# === yt-light: the link to the cluster above, a turn a second (src/main.rs) ===
+# === yt-lite: the link to the cluster above, a turn a second (src/main.rs) ===
 light-ask-failed: "YT-E043 demande de l'adresse du cluster au-dessus : %{error}"
 light-fetch-failed: "YT-E044 récupération auprès du cluster au-dessus : %{error} - le nœud suivant ensuite"
 light-apply-failed: "YT-E045 application d'un lot du cluster au-dessus : %{error} - de nouveau au prochain tour"
@@ -69,7 +69,7 @@ light-signed-in-az: "connecté au cluster au-dessus : pris là-bas pour un nœud
 # === the unix socket the extension calls (src/service.rs) ===
 light-chmod: "YT-E054 impossible de chmod 0777 %{path} : %{error}"
 light-row-no-table: "YT-E055 une ligne sans sa table"
-light-one-database: "0A000: YT-E056 YT light sert une seule base (%{db}) ; plusieurs bases par instance demandent la version complète"
+light-one-database: "0A000: YT-E056 YT lite sert une seule base (%{db}) ; plusieurs bases par instance demandent la version complète"
 light-full-version: "0A000: YT-E057 %{what} demande la version complète de YT Cluster"
 light-unknown-completion: "YT-E058 une fin inconnue %{value}"
 light-complete-failed: "YT-E059 fin tx=%{tx} : %{error}"
@@ -78,7 +78,7 @@ light-info-refused: "info: '%{what}' refusé - de la version complète"
 light-info-az-none: "none: le cluster au-dessus n'a pas d'az"
 light-info-az-shared: "%{az} - celle du nœud au-dessus, partagée ; un nœud light n'en a pas de propre"
 light-info-az-untold: "pas encore communiqué : aucune connexion accordée"
-light-info-light: "YT light : une base, une feuille d'un cluster YT"
+light-info-light: "YT lite : une base, une feuille d'un cluster YT"
 
 # === the store, PostgreSQL (src/pg.rs) ===
 light-db-url: "YT-E060 l'URL de la base : %{error}"

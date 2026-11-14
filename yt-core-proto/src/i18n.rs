@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
 //! [i18n] What this crate says, in the language the binary set with
 //! `rust_i18n::set_locale` - en, ru, and - not reviewed - fr, de, zh, ja; another language
-//! is English. An error's message starts with its code: YT light's codes have three
+//! is English. An error's message starts with its code: YT lite's codes have three
 //! digits (`YT-Ennn`), YT Cluster's own have four.
 
 /// A gRPC client's call refused before it was sent: the connection is not ready. What the
@@ -16,7 +16,7 @@ pub fn not_ready_in(locale: &str, err: &str) -> String {
 	rust_i18n::t!("grpc.not_ready", locale = locale, err = err).into_owned()
 }
 
-/// A code's digits when `code` is one of YT light's: `YT-E` and three digits.
+/// A code's digits when `code` is one of YT lite's: `YT-E` and three digits.
 pub fn light_code(code: &str) -> Option<u32> {
 	let n = code.strip_prefix("YT-E")?;
 	(n.len() == 3 && n.bytes().all(|b| b.is_ascii_digit())).then(|| n.parse().ok()).flatten()

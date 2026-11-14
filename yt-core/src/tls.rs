@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! yt-light's CA, and its TLS to the cluster above. A light node has no az: its CA is its
+//! yt-lite's CA, and its TLS to the cluster above. A light node has no az: its CA is its
 //! own identity across the link, under its node uuid, as a lower cluster's CA is that
 //! cluster's:
 //!
@@ -515,7 +515,7 @@ mod tests {
 	use openssl::sign::Verifier;
 
 	fn dir(tag: &str) -> PathBuf {
-		let d = std::env::temp_dir().join(format!("yt-light-tls-{}-{}", tag, std::process::id()));
+		let d = std::env::temp_dir().join(format!("yt-lite-tls-{}-{}", tag, std::process::id()));
 		let _ = std::fs::remove_dir_all(&d);
 		d
 	}

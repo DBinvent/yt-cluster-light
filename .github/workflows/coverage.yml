@@ -1,16 +1,16 @@
 name: coverage
 
-# [coverage] The whole `cargo test` of the workspace - yt-core-proto, yt-core and yt-light,
+# [coverage] The whole `cargo test` of the workspace - yt-core-proto, yt-core and yt-lite,
 # the link tests against a cluster node served in the same process - and its line coverage,
 # the generated gRPC code (protogen) left out. The tests that need a PostgreSQL with the
-# extension (yt-core tests/pg_live.rs, pg_service.rs, yt_light_bin.rs) run here: the extension
+# extension (yt-core tests/pg_live.rs, pg_service.rs, yt_lite_bin.rs) run here: the extension
 # is built with `make`, and each test starts a throwaway PostgreSQL with it (tests/fixture,
-# YT_LIGHT_EXT_SO). The badge is our own, no third party: drawn
+# YT_LITE_EXT_SO). The badge is our own, no third party: drawn
 # from lcov.info and kept on the `badges` branch, which the README shows. The target is 80% of
 # the lines (owner, 2026-11-13): the last step fails the run under it, the badge written first.
 #
 # diff_doc comes from crates.io (1.1 on, its `proto` feature): the run checks out this
-# repository alone, under yt-cluster-light/.
+# repository alone, under yt-cluster-lite/.
 on:
   push:
     branches-ignore: ["dependabot/**"]   # their pull request runs it
@@ -29,18 +29,18 @@ jobs:
         # bash -eo pipefail: GitHub's default shell has no pipefail, and a piped step
         # (cargo geiger | tee) would hide the command's failure
         shell: bash
-        working-directory: yt-cluster-light
+        working-directory: yt-cluster-lite
     steps:
       - uses: actions/checkout@v7
         with:
-          path: yt-cluster-light
+          path: yt-cluster-lite
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-llvm-cov
-      # protoc for the protos, the OpenSSL headers for yt-light's TLS; PostgreSQL and its server
+      # protoc for the protos, the OpenSSL headers for yt-lite's TLS; PostgreSQL and its server
       # headers, and what the extension builds with, for the tests on a throwaway PostgreSQL.
       # PostgreSQL 16 by name, its server and its headers from the one repository the runner
       # takes them from: the image carries PGDG's postgresql-common, which Ubuntu's
@@ -53,7 +53,7 @@ jobs:
           # with_llvm=no: PGDG's PostgreSQL is built with LLVM, and PGXS would emit JIT bitcode
           # with clang, which the runner has not (make: Error 127) - as Dockerfile.el9 builds
           make -C ytpgc PG_CONFIG="/usr/lib/postgresql/$PG/bin/pg_config" with_llvm=no
-          echo "YT_LIGHT_EXT_SO=$(ls "$PWD"/ytpgc/yt_cluster*-pg"$PG"-*.so)" >> "$GITHUB_ENV"
+          echo "YT_LITE_EXT_SO=$(ls "$PWD"/ytpgc/yt_cluster*-pg"$PG"-*.so)" >> "$GITHUB_ENV"
           echo "PG_BIN=/usr/lib/postgresql/$PG/bin" >> "$GITHUB_ENV"
       - run: cargo llvm-cov --workspace --no-fail-fast --ignore-filename-regex protogen --lcov --output-path lcov.info
       # [coverage] our own badge, no third party: lcov.info's line coverage, drawn by

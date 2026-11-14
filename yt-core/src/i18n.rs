@@ -2,7 +2,7 @@
 //! [i18n] What the light node says, in one language: en, ru, and - not reviewed - fr,
 //! de, zh, ja (`locales/`). An error's message starts with its code, the same in every
 //! language - after its SQLSTATE when it has one, which the extension reads at position
-//! 0. YT light's codes have three digits (`YT-Ennn`: yt-core-proto YT-E001 to YT-E029,
+//! 0. YT lite's codes have three digits (`YT-Ennn`: yt-core-proto YT-E001 to YT-E029,
 //! this crate YT-E030 and up); YT Cluster's own have four.
 //!
 //! The shared link files (`core/pos.rs`, `route.rs`, `relay.rs`, `signin.rs`) say theirs
@@ -20,7 +20,7 @@ pub fn language_of(locale: &str) -> Option<&'static str> {
 	LANGS.iter().copied().find(|x| *x == l)
 }
 
-/// The language of yt-light's messages: its `lang` setting, else the database's
+/// The language of yt-lite's messages: its `lang` setting, else the database's
 /// (`lc_messages`), else the system locale's, else English.
 pub fn pick(setting: Option<&str>, database: Option<&str>, system: Option<&str>) -> &'static str {
 	[setting, database, system].into_iter().flatten().find_map(language_of).unwrap_or("en")
@@ -110,7 +110,7 @@ mod tests {
 	}
 
 	/// an error's code: the same in every language, on one message, with three digits -
-	/// YT light's, YT-E030 and up here - and its SQLSTATE at position 0 everywhere
+	/// YT lite's, YT-E030 and up here - and its SQLSTATE at position 0 everywhere
 	#[test]
 	fn an_errors_code_is_the_same_in_every_language_and_used_once() {
 		let en = file("en");
@@ -187,7 +187,7 @@ mod tests {
 	#[test]
 	fn a_message_is_said_in_the_language_asked_for() {
 		let en = rust_i18n::t!("light-info-light", locale = "en").into_owned();
-		assert_eq!(en, "YT light: one database, a leaf of a YT cluster");
+		assert_eq!(en, "YT lite: one database, a leaf of a YT cluster");
 		for l in &LANGS[1..] {
 			assert_ne!(rust_i18n::t!("light-info-az-untold", locale = *l).into_owned(),
 				rust_i18n::t!("light-info-az-untold", locale = "en").into_owned(), "{}", l);

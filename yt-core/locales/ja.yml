@@ -2,7 +2,7 @@ _version: 1
 # [i18n] yt-core's messages in Japanese: one file per language (en, ru, and - not reviewed -
 # fr, de, zh, ja), every key in each. An error's message starts with its code, the same in
 # every language (src/i18n.rs tests it) - after a SQLSTATE such as 0A000: when it has one,
-# which the extension reads at position 0. YT light's codes have three digits, YT-Ennn:
+# which the extension reads at position 0. YT lite's codes have three digits, YT-Ennn:
 # yt-core-proto YT-E001 to YT-E029, yt-core YT-E030 and up. YT Cluster's own have four,
 # YT-Ennnn. ytserv reads these files too, by symlink (its locales/light.<lang>.yml): what a
 # shared link file says is the same there, under the same code.
@@ -22,11 +22,11 @@ light-leaf-no-down: "YT-E032 light ノードはリーフです: そこから下�
 light-call-tls: "%{host} (TLS): %{error}"
 light-call-then-plaintext: "%{first} - その後は平文: %{error}"
 
-# === yt-light: its command line and its start (src/main.rs) ===
-light-usage-about: "yt-light - YT light: この PostgreSQL インスタンスの 1 つのデータベース向けの YT ノードで、YT クラスターのリーフです。\nyt_cluster 拡張の unix ソケットを提供し、上位クラスターが受け取るまでデータベースがコミットした内容を保持し、\n下りてきたものを適用します。\n"
-light-usage-args: "  yt-light [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] [-v | -q]\n\n  <url>               このインスタンスの unix ソケット越しに提供するデータベース:\n                      postgresql://postgres@localhost/appdb?host=/var/run/postgresql\n  --config            その設定テーブル (既定値は拡張の yt_config)\n  --file              key=value の行: 下の設定を、設定テーブルより先に読み込みます\n  --uuid              このノードの uuid (既定値は設定テーブルに保存されているもの)\n  -v, -q              デバッグ、または警告のみ。-h はこのテキスト、-V はバージョン\n"
-light-usage-settings: "設定 - --file の `name=value` の行、または設定テーブルの行 (モジュール L):\n  upper       ダイヤルする上位クラスターのノード (http://host:port)、カンマ区切り、順に試します\n  upper_root  上位クラスターのルート SHA256:... - その CA。`ytctl --skv-status` がそこに表示するとおり\n              それにチェーンするものだけを、そのクラスターから受け取ります\n  cluster_db  上位クラスターでのこのデータベースの名前 (既定値は同じ名前)\n  key_dir     このノードが CA を保持する場所 (既定値は ~/.yt-light/<このノードの uuid>)\n  lang        メッセージの言語: en, ru, fr, de, zh または ja (既定値はデータベースのもの)\n\n  INSERT INTO yt_config (name, module, value) VALUES ('upper', 'L', 'http://node1:7421');\n"
-light-usage-link: "az なし: light ノードは設定する az を持ちません。サインイン先のノードがそれを自分の az のノードとして扱い、\nその az が保持するものを送ります (どの az かは yt_info に表示されます)。\n\nリンク: 上位クラスターは、最初の起動時に作られたこのノードの CA によってこのノードを受け入れます。上位クラスターの\n運用者は、このノードがサインインした後、クラスターの leader でその CA を承認します - `ytctl\n--skv-approve <uuid> --fingerprint <fp>` (fingerprint は yt-light が起動時にログへ出力したもの)。その後\nクラスターがそれに連署し、そこへのすべての呼び出しは TLS になります。\n\nエラー: 各メッセージは YT-Ennn のコードで始まります - SQLSTATE がある場合 (例: 0A000:) はその後ろに続きます。\nhttps://docs.dbinvent.com/errors/<code> で説明されています。\n"
+# === yt-lite: its command line and its start (src/main.rs) ===
+light-usage-about: "yt-lite - YT lite: この PostgreSQL インスタンスの 1 つのデータベース向けの YT ノードで、YT クラスターのリーフです。\nyt_cluster 拡張の unix ソケットを提供し、上位クラスターが受け取るまでデータベースがコミットした内容を保持し、\n下りてきたものを適用します。\n"
+light-usage-args: "  yt-lite [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] [-v | -q]\n\n  <url>               このインスタンスの unix ソケット越しに提供するデータベース:\n                      postgresql://postgres@localhost/appdb?host=/var/run/postgresql\n  --config            その設定テーブル (既定値は拡張の yt_config)\n  --file              key=value の行: 下の設定を、設定テーブルより先に読み込みます\n  --uuid              このノードの uuid (既定値は設定テーブルに保存されているもの)\n  -v, -q              デバッグ、または警告のみ。-h はこのテキスト、-V はバージョン\n"
+light-usage-settings: "設定 - --file の `name=value` の行、または設定テーブルの行 (モジュール L):\n  upper       ダイヤルする上位クラスターのノード (http://host:port)、カンマ区切り、順に試します\n  upper_root  上位クラスターのルート SHA256:... - その CA。`ytctl --skv-status` がそこに表示するとおり\n              それにチェーンするものだけを、そのクラスターから受け取ります\n  cluster_db  上位クラスターでのこのデータベースの名前 (既定値は同じ名前)\n  key_dir     このノードが CA を保持する場所 (既定値は ~/.yt-lite/<このノードの uuid>)\n  lang        メッセージの言語: en, ru, fr, de, zh または ja (既定値はデータベースのもの)\n\n  INSERT INTO yt_config (name, module, value) VALUES ('upper', 'L', 'http://node1:7421');\n"
+light-usage-link: "az なし: light ノードは設定する az を持ちません。サインイン先のノードがそれを自分の az のノードとして扱い、\nその az が保持するものを送ります (どの az かは yt_info に表示されます)。\n\nリンク: 上位クラスターは、最初の起動時に作られたこのノードの CA によってこのノードを受け入れます。上位クラスターの\n運用者は、このノードがサインインした後、クラスターの leader でその CA を承認します - `ytctl\n--skv-approve <uuid> --fingerprint <fp>` (fingerprint は yt-lite が起動時にログへ出力したもの)。その後\nクラスターがそれに連署し、そこへのすべての呼び出しは TLS になります。\n\nエラー: 各メッセージは YT-Ennn のコードで始まります - SQLSTATE がある場合 (例: 0A000:) はその後ろに続きます。\nhttps://docs.dbinvent.com/errors/<code> で説明されています。\n"
 light-args: "YT-E033 コマンドライン: %{error}"
 light-no-setting: "YT-E034 設定 %{name} がありません: --file の `%{name}=...` の行、または設定テーブルの行 (モジュール L) が必要です: INSERT INTO yt_config (name, module, value) VALUES ('%{name}', 'L', '...')"
 light-no-key-dir: "YT-E035 key_dir が設定されておらず、HOME もありません: このノードの CA をどこに保持するか - --file の `key_dir=...` の行、または設定テーブルの行 (モジュール L)"
@@ -37,17 +37,17 @@ light-socket: "YT-E039 unix ソケット: %{error}"
 light-socket-stopped: "YT-E040 unix ソケットサーバーが停止しました: %{error}"
 light-ca: "YT-E041 このノードの CA: %{error}"
 light-no-root: "YT-E042 upper_root が設定されていません: 上位クラスターから渡されるものは何も受け取られないため、そこへの TLS はありません - 上位クラスターの CA の SHA256:... を設定してください。`ytctl --skv-status` がそこに表示するとおりです"
-light-start: "yt-light %{version}: %{hosts} にあるクラスターのリーフ"
+light-start: "yt-lite %{version}: %{hosts} にあるクラスターのリーフ"
 light-ca-line: "このノードの CA %{fingerprint} (%{dir} に保持): 上位クラスターがその leader で承認します - ytctl --skv-approve %{uuid} --fingerprint %{fingerprint}"
 light-tls-line: "リンクの TLS: %{status}"
 light-serving: "データベース %{db} を提供中 (上位では %{cluster_db})、%{socket} 上、ノード %{uuid}"
-light-stopped: "yt-light が停止しました: %{why}"
+light-stopped: "yt-lite が停止しました: %{why}"
 light-signal-interrupt: "割り込み"
 light-signal-terminate: "終了"
 light-signal-hangup: "ハングアップ"
 light-signal-none: "シグナルハンドラーなし"
 
-# === yt-light: the link to the cluster above, a turn a second (src/main.rs) ===
+# === yt-lite: the link to the cluster above, a turn a second (src/main.rs) ===
 light-ask-failed: "YT-E043 上位クラスターの所在を問い合わせ中: %{error}"
 light-fetch-failed: "YT-E044 上位クラスターからの取得: %{error} - 次は次のノードを試します"
 light-apply-failed: "YT-E045 上位クラスターからのバッチの適用: %{error} - 次のターンに再試行します"
@@ -69,7 +69,7 @@ light-signed-in-az: "上位クラスターにサインインしました: az %{a
 # === the unix socket the extension calls (src/service.rs) ===
 light-chmod: "YT-E054 %{path} に chmod 0777 できません: %{error}"
 light-row-no-table: "YT-E055 テーブルのない行"
-light-one-database: "0A000: YT-E056 YT light は 1 つのデータベース (%{db}) を提供します。インスタンス内の複数データベースには完全版が必要です"
+light-one-database: "0A000: YT-E056 YT lite は 1 つのデータベース (%{db}) を提供します。インスタンス内の複数データベースには完全版が必要です"
 light-full-version: "0A000: YT-E057 %{what} には YT Cluster の完全版が必要です"
 light-unknown-completion: "YT-E058 不明な完了指定 %{value}"
 light-complete-failed: "YT-E059 complete tx=%{tx}: %{error}"
@@ -78,7 +78,7 @@ light-info-refused: "info: '%{what}' は拒否されました - 完全版のも�
 light-info-az-none: "none: 上位クラスターには az がありません"
 light-info-az-shared: "%{az} - 上位ノードのもので共有; light ノードは独自のものを持ちません"
 light-info-az-untold: "まだ通知されていません: サインインが許可されていません"
-light-info-light: "YT light: 1 つのデータベース、YT クラスターのリーフ"
+light-info-light: "YT lite: 1 つのデータベース、YT クラスターのリーフ"
 
 # === the store, PostgreSQL (src/pg.rs) ===
 light-db-url: "YT-E060 データベースの URL: %{error}"

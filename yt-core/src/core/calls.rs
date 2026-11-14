@@ -41,7 +41,7 @@ pub async fn turn(node: &Node) -> usize {
 /// how long a host may take to answer the dial: an unreachable one is left soon
 const CONNECT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
-/// yt-light, once the cluster above countersigned its CA: every call is TLS (crate::tls) -
+/// yt-lite, once the cluster above countersigned its CA: every call is TLS (crate::tls) -
 /// `Some`, with which change of the chain it holds this is. A channel is kept for one of
 /// them: after the cluster handed over another countersigned CA or other roots, the next
 /// call connects again and presents the new chain (review of 2026-11-13).
@@ -101,7 +101,7 @@ fn no_link(t: &Target, e: &tonic::Status) -> Option<String> {
 /// light node's, which it does not know: its words, as that release says them
 const BEFORE_LIGHT: &str = "sign-in carried a level but no target_az";
 
-/// A refusal of the cluster above as yt-light says it: one from a leader before 1.21 with
+/// A refusal of the cluster above as yt-lite says it: one from a leader before 1.21 with
 /// what that means, any other as it is
 pub fn refused(reason: &str) -> String {
 	if reason.contains(BEFORE_LIGHT) {

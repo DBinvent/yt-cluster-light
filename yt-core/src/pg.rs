@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! yt-light's store: PostgreSQL, the one database it serves (yt-light.md 16).
+//! yt-lite's store: PostgreSQL, the one database it serves (yt-lite.md 16).
 //!
 //! - **Up.** A transaction's rows, as the extension sent them, wait in memory until its
 //!   prepare (the extension's PRE_COMMIT); then they are in `yt_outbox` under the
@@ -197,14 +197,14 @@ impl Pg {
 		format!("{}.{}", ident(&self.schema), ident(&self.config_table))
 	}
 
-	/// yt-light's settings: the config table's module-L rows, by name.
+	/// yt-lite's settings: the config table's module-L rows, by name.
 	pub async fn settings(&self) -> Result<HashMap<String, String>, String> {
 		let c = self.session(&self.capture).await?;
 		Ok(c.query(&format!("SELECT name::text, value FROM {} WHERE module = 'L'", self.config()), &[]).await
 			.map_err(e("yt_config"))?.iter().map(|r| (r.get(0), r.get(1))).collect())
 	}
 
-	/// The language the database says its messages in (`lc_messages`), for yt-light's own
+	/// The language the database says its messages in (`lc_messages`), for yt-lite's own
 	/// (i18n.rs `pick`); none when it cannot be asked.
 	pub async fn lc_messages(&self) -> Option<String> {
 		let c = self.session(&self.capture).await.ok()?;

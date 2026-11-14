@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! YT Cluster light: a YT node for one database - beside one PostgreSQL instance
-//! (yt-light), or inside an application. It is a leaf of a YT cluster, one node with no az
+//! YT Cluster lite: a YT node for one database - beside one PostgreSQL instance
+//! (yt-lite), or inside an application. It is a leaf of a YT cluster, one node with no az
 //! of its own: it signs in to the cluster above and relays rows down and up over the link
 //! (the `core` module).
 // [i18n] this crate's messages (locales/, src/i18n.rs). `t!` is the short form its own files
@@ -13,16 +13,16 @@ macro_rules! t {
 pub mod i18n;
 
 pub mod core;
-// a light node's store: the database its rows live in (PostgreSQL for yt-light, Turso in an
+// a light node's store: the database its rows live in (PostgreSQL for yt-lite, Turso in an
 // application), or none - in memory
 pub mod db;
 // which of its tables sync, and which way: their A rows, as on a cluster node
 #[cfg(any(feature = "service", feature = "lite"))]
 pub mod sync;
-// the link's turns for a light node: sign in, down, up (yt-light's own loop is src/main.rs)
+// the link's turns for a light node: sign in, down, up (yt-lite's own loop is src/main.rs)
 pub mod leaf;
 
-// yt-light, the service beside one PostgreSQL instance (src/main.rs)
+// yt-lite, the service beside one PostgreSQL instance (src/main.rs)
 #[cfg(feature = "service")]
 pub mod pg;
 #[cfg(feature = "service")]

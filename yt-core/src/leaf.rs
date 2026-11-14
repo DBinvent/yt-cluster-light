@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
 //! The link's turns for a light node inside an application: once a second it signs in -
 //! when it is not let in, every minute, and after a change of host - then takes what came
-//! down and sends what goes up. yt-light runs the same turns in its own loop (src/main.rs),
+//! down and sends what goes up. yt-lite runs the same turns in its own loop (src/main.rs),
 //! with the PostgreSQL transactions it settles besides.
 //!
 //! An application spawns `run` on its tokio runtime; `run_until` stops between two turns once

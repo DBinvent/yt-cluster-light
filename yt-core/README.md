@@ -3,7 +3,7 @@
 `yt-core` is a YT node for one database. It links to a YT Cluster as a leaf of it: one
 node, the lowest there is, with nothing below it. It comes in three forms:
 
-- **yt-light** (the `service` feature, on by default) runs as a service beside one
+- **yt-lite** (the `service` feature, on by default) runs as a service beside one
   PostgreSQL instance and serves one of its databases through the `yt_cluster` extension.
   The database is its store.
 - **The library inside an application**, on the application's own database: Turso, with
@@ -23,9 +23,9 @@ The cluster node it signs in through takes it for a node of that node's own az. 
 node is told which az that is (`yt_info()` shows it) and cannot change it. That az decides
 which tables it takes: see [Tables](#tables).
 
-## yt-light
+## yt-lite
 
-yt-light serves the extension's unix socket, `.s.YT.<port>`, for one database. A pid file
+yt-lite serves the extension's unix socket, `.s.YT.<port>`, for one database. A pid file
 beside the socket keeps a second node off it.
 
 - **Commits.** It keeps each transaction's rows until the transaction commits. It then
@@ -39,7 +39,7 @@ beside the socket keeps a second node off it.
   version.
 
 ```
-yt-light [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] [-v | -q]
+yt-lite [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] [-v | -q]
 
   <url>       the database it serves, over the instance's unix socket:
               postgresql://postgres@localhost/appdb?host=/var/run/postgresql
@@ -51,15 +51,15 @@ yt-light [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] 
 ### Settings
 
 Each setting is a `name=value` line of `--file`, or a row of the config table in module L.
-yt-light takes marg, the command-line library, at 0.4.7 or later: 0.4.4 read `--file` from a
+yt-lite takes marg, the command-line library, at 0.4.7 or later: 0.4.4 read `--file` from a
 file named `file` instead of the path given.
 
 | Name | What it is |
 |---|---|
 | `upper` | the nodes of the cluster above to dial, as `http://host:port`, comma separated and tried in turn |
-| `upper_root` | the root of the cluster above, `SHA256:...`: its CA, as `ytctl --skv-status` prints it there. yt-light takes only what chains to it. |
+| `upper_root` | the root of the cluster above, `SHA256:...`: its CA, as `ytctl --skv-status` prints it there. yt-lite takes only what chains to it. |
 | `cluster_db` | this database's name in the cluster above (default: its own name) |
-| `key_dir` | where this node keeps its CA (default: `~/.yt-light/<uuid>`) |
+| `key_dir` | where this node keeps its CA (default: `~/.yt-lite/<uuid>`) |
 | `lang` | the language of its messages: `en`, `ru`, `fr`, `de`, `zh` or `ja` (default: the database's `lc_messages`, else the system locale's, else English) |
 
 ```sql
@@ -74,12 +74,12 @@ all.
 
 1. On the cluster, `ytctl --skv-status` prints its CA, `SHA256:...`. That goes in
    `upper_root`.
-2. Set `upper` and `upper_root`, then start yt-light.
-3. At its first start, yt-light makes its CA in `key_dir` and logs the CA's fingerprint
+2. Set `upper` and `upper_root`, then start yt-lite.
+3. At its first start, yt-lite makes its CA in `key_dir` and logs the CA's fingerprint
    with the line to run. The cluster refuses its sign-in until that CA is approved.
 4. On the cluster's leader, run `ytctl --skv-approve <uuid> --fingerprint <fp>`. Compare the
-   fingerprint with the one yt-light logged.
-5. The cluster countersigns the CA. yt-light keeps the countersigned CA and the cluster's
+   fingerprint with the one yt-lite logged.
+5. The cluster countersigns the CA. yt-lite keeps the countersigned CA and the cluster's
    roots beside the key, so a restart needs no new approval. From then on every call to
    the cluster is TLS 1.3.
 
@@ -131,19 +131,19 @@ to.
 
 ### Messages
 
-yt-light says everything in one language (the `lang` setting). An error's message starts
+yt-lite says everything in one language (the `lang` setting). An error's message starts
 with its code, `YT-Ennn`, the same in every language, after a SQLSTATE such as `0A000:`
-when it has one. `https://docs.dbinvent.com/errors/<code>` explains a code. YT light's
+when it has one. `https://docs.dbinvent.com/errors/<code>` explains a code. YT lite's
 codes have three digits; YT Cluster's own have four.
 
 ### Versions
 
-yt-light links to YT Cluster 1.21 or later: the Link service it calls came with 1.21. In a
+yt-lite links to YT Cluster 1.21 or later: the Link service it calls came with 1.21. In a
 cluster that is being upgraded from 1.20:
 
-- A node still at 1.20 has no Link service. yt-light says so (`YT-E077`, the node named)
+- A node still at 1.20 has no Link service. yt-lite says so (`YT-E077`, the node named)
   and signs in through the next node of `upper`.
-- A leader still at 1.20 does not admit a light node. yt-light says so (`YT-E078`) and signs
+- A leader still at 1.20 does not admit a light node. yt-lite says so (`YT-E078`) and signs
   in again every minute; it is admitted once the leader runs 1.21.
 - Rows cross as they do in a cluster of one version, and the extension of either version
   works under either node (`../ytpgc/README.md`, "Version").
@@ -177,7 +177,7 @@ let status = Arc::new(Mutex::new(yt_core::leaf::Status::default()));
 tokio::spawn(yt_core::leaf::run(node, status.clone(), |said| println!("{said}")));
 ```
 
-- **Linking** is yt-light's: the CA's fingerprint (`tls.fingerprint()`) is approved on the
+- **Linking** is yt-lite's: the CA's fingerprint (`tls.fingerprint()`) is approved on the
   cluster's leader with `ytctl --skv-approve <uuid> --fingerprint <fp>`, and from then on the
   calls are TLS. `leaf::Status` says where the link is: granted, TLS, caught up, waiting.
 - **Names.** A cluster table `schema.table` is the Turso table named `schema.table` (quoted:
@@ -188,7 +188,7 @@ tokio::spawn(yt_core::leaf::run(node, status.clone(), |said| println!("{said}"))
   type as an integer, a float, a boolean, anything else as text - with the PostgreSQL type
   id, so the cluster binds it as one of its own. A timestamp is text: write it as PostgreSQL
   does (`2026-11-13 18:00:00+00`).
-- **Which tables sync:** as yt-light's, by an A row in the application database's own
+- **Which tables sync:** as yt-lite's, by an A row in the application database's own
   `yt_config` (`schema.table`, the cluster's name). `setup(table)` writes one with the
   triggers; `sync(table, value)` writes one alone, for a table whose rows only come down;
   `unsync(table)` takes both away. No A row: nothing of the table moves, counted
@@ -228,24 +228,24 @@ and [yt-sqlite](../yt-sqlite/README.md), the SQLite loadable extension, on SQLit
 ## Building
 
 The crate needs `protoc` (see [yt-core-proto](../yt-core-proto/README.md#building)).
-yt-light also needs the OpenSSL headers (`libssl-dev`).
+yt-lite also needs the OpenSSL headers (`libssl-dev`).
 
 ```
-cargo build --release      # yt-light at target/release/yt-light
-cargo build --no-default-features    # the library alone, without yt-light
+cargo build --release      # yt-lite at target/release/yt-lite
+cargo build --no-default-features    # the library alone, without yt-lite
 ```
 
 ## Tests
 
 ```
 cargo test
-YT_LIGHT_EXT_SO=../ytpgc/yt_cluster1_21-pg16-glibc2_39.so cargo test
+YT_LITE_EXT_SO=../ytpgc/yt_cluster1_21-pg16-glibc2_39.so cargo test
 ```
 
-The tests that need PostgreSQL (`tests/pg_live.rs`, `pg_service.rs`, `yt_light_bin.rs`) start
+The tests that need PostgreSQL (`tests/pg_live.rs`, `pg_service.rs`, `yt_lite_bin.rs`) start
 a throwaway server of their own (`tests/fixture`), from `pg_config --bindir` (or `PG_BIN`), with
-the extension's library `YT_LIGHT_EXT_SO` - built by `make -C ../ytpgc` for that PostgreSQL. Without
-it they are skipped. `pg_live` also runs against a database of yours, `YT_LIGHT_TEST_DB`.
+the extension's library `YT_LITE_EXT_SO` - built by `make -C ../ytpgc` for that PostgreSQL. Without
+it they are skipped. `pg_live` also runs against a database of yours, `YT_LITE_TEST_DB`.
 The coverage run (`.github/workflows/coverage.yml`) runs them all; its target is 80% of the lines,
 the generated gRPC code left out.
 
@@ -253,5 +253,5 @@ the generated gRPC code left out.
 `tests/turso.rs` (`cargo test --features turso`) an application on Turso the same way.
 `tests/sqlite_ext.rs` loads yt-sqlite, the SQLite extension (`YT_SQLITE_EXT`, its built
 `libyt.so`; skipped without it), into a SQLite of its own and links it the same way.
-`tests/pg_live.rs` runs yt-light's store against a real PostgreSQL, `pg_service.rs` the extension
-writing through yt-light's service, and `yt_light_bin.rs` the yt-light binary itself.
+`tests/pg_live.rs` runs yt-lite's store against a real PostgreSQL, `pg_service.rs` the extension
+writing through yt-lite's service, and `yt_lite_bin.rs` the yt-lite binary itself.

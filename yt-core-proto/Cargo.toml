@@ -2,7 +2,7 @@
 name = "yt-core-proto"
 version = "1.21.0"
 edition.workspace = true
-description = "YT Cluster light: the Rust types of the base, db and link protos, their helper code, and the gRPC client and server stubs"
+description = "YT Cluster lite: the Rust types of the base, db and link protos, their helper code, and the gRPC client and server stubs"
 
 authors = ["Vladimir Krinitsyn <v.krinitsyn@gmail.com>", "DBinvent <support@dbinvent.com>"]
 license = "MIT"

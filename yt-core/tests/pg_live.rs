@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! yt-light's store on a real PostgreSQL (crate::pg): down applies a batch into a table
+//! yt-lite's store on a real PostgreSQL (crate::pg): down applies a batch into a table
 //! with its cursor, once; up delivers the outbox from where the node above is, and what
 //! the node above holds leaves the outbox. Run against a database of a throwaway instance -
-//! it creates and drops table `yt_light_live` - given, or one the test starts itself (fixture):
+//! it creates and drops table `yt_lite_live` - given, or one the test starts itself (fixture):
 //!
-//!   YT_LIGHT_TEST_DB='postgresql://user@localhost/db?host=/run/postgresql' cargo test --test pg_live
-//!   YT_LIGHT_EXT_SO=ytpgc/yt_cluster.so cargo test --test pg_live
+//!   YT_LITE_TEST_DB='postgresql://user@localhost/db?host=/run/postgresql' cargo test --test pg_live
+//!   YT_LITE_EXT_SO=ytpgc/yt_cluster.so cargo test --test pg_live
 //!
 //! With neither it is skipped.
 mod fixture;
@@ -49,7 +49,7 @@ impl Link for Above {
 
 fn row(db: &str, action: DbAction, id: i64, name: Option<&str>) -> DbInputEntity {
 	let mut e = DbInputEntity {
-		table: Some(TableRef { db: db.into(), schema: "public".into(), table: "yt_light_live".into(), columns: vec![
+		table: Some(TableRef { db: db.into(), schema: "public".into(), table: "yt_lite_live".into(), columns: vec![
 			ColumnRef { attnum: 1, name: "id".into(), pk: true, ..Default::default() },
 			ColumnRef { attnum: 2, name: "name".into(), ..Default::default() }], ..Default::default() }),
 		action: action as i32,
@@ -67,10 +67,10 @@ fn row(db: &str, action: DbAction, id: i64, name: Option<&str>) -> DbInputEntity
 }
 
 #[tokio::test]
-async fn yt_light_applies_what_comes_down_and_sends_its_outbox_up() {
+async fn yt_lite_applies_what_comes_down_and_sends_its_outbox_up() {
 	// the database given, else a throwaway PostgreSQL (tests/fixture); neither: skipped
 	let tmp;
-	let url = match std::env::var("YT_LIGHT_TEST_DB") {
+	let url = match std::env::var("YT_LITE_TEST_DB") {
 		Ok(u) => u,
 		Err(_) => {
 			tmp = match fixture::TmpPg::start("live").await { Some(t) => t, None => return };
@@ -82,12 +82,12 @@ async fn yt_light_applies_what_comes_down_and_sends_its_outbox_up() {
 	// the test's table, and an empty outbox and cursors
 	let (c, conn) = tokio_postgres::connect(&url, tokio_postgres::NoTls).await.unwrap();
 	tokio::spawn(conn);
-	c.batch_execute(&format!("DROP TABLE IF EXISTS public.yt_light_live; CREATE TABLE public.yt_light_live (id bigint PRIMARY KEY, name text); \
+	c.batch_execute(&format!("DROP TABLE IF EXISTS public.yt_lite_live; CREATE TABLE public.yt_lite_live (id bigint PRIMARY KEY, name text); \
 		DELETE FROM {s}.yt_outbox; DELETE FROM {s}.yt_position WHERE name LIKE 'cursor%' OR name LIKE 'passed%'", s = pg.schema)).await.unwrap();
 	// both tables sync (crate::sync): an A row each, as yt_setup writes one - the second
 	// names a table this database does not have
-	c.batch_execute(&format!("DELETE FROM {s}.{t} WHERE module = 'A' AND name IN ('public.yt_light_live', 'public.yt_light_not_here'); \
-		INSERT INTO {s}.{t} (name, module, value) VALUES ('public.yt_light_live', 'A', ''), ('public.yt_light_not_here', 'A', '')",
+	c.batch_execute(&format!("DELETE FROM {s}.{t} WHERE module = 'A' AND name IN ('public.yt_lite_live', 'public.yt_lite_not_here'); \
+		INSERT INTO {s}.{t} (name, module, value) VALUES ('public.yt_lite_live', 'A', ''), ('public.yt_lite_not_here', 'A', '')",
 		s = pg.schema, t = pg.config_table)).await.unwrap();
 
 	let above = Above::default();
@@ -103,7 +103,7 @@ async fn yt_light_applies_what_comes_down_and_sends_its_outbox_up() {
 
 	// down: applied into the table, the cursor moved; again: nothing changes
 	assert_eq!(relay::down(&node, ABOVE).await, Outcome::Moved);
-	let rows: Vec<(i64, String)> = c.query("SELECT id, name FROM public.yt_light_live ORDER BY id", &[]).await.unwrap()
+	let rows: Vec<(i64, String)> = c.query("SELECT id, name FROM public.yt_lite_live ORDER BY id", &[]).await.unwrap()
 		.iter().map(|r| (r.get(0), r.get(1))).collect();
 	assert_eq!(rows, vec![(2, "bb".to_string())]);
 	assert_eq!(store::cursor(&node, ABOVE).await, Some((7, 2)));
@@ -112,13 +112,13 @@ async fn yt_light_applies_what_comes_down_and_sends_its_outbox_up() {
 	// and table. A row of another database, or of a table this database does not have, is
 	// not this node's: left out and counted, the rows beside it applied, the cursor moved
 	let mut elsewhere = row(&db, DbAction::Insert, 9, Some("x"));
-	elsewhere.table.as_mut().unwrap().table = "yt_light_not_here".into();
+	elsewhere.table.as_mut().unwrap().table = "yt_lite_not_here".into();
 	above.down.lock().unwrap().push(RelayItem { term: 7, subterm: 3, data: vec![
 		row("other", DbAction::Insert, 9, Some("x")), elsewhere, row(&db, DbAction::Insert, 3, Some("c"))] });
 	assert_eq!(relay::down(&node, ABOVE).await, Outcome::Moved);
 	assert_eq!(store::cursor(&node, ABOVE).await, Some((7, 3)));
 	assert_eq!(pg.not_held.load(std::sync::atomic::Ordering::Relaxed), 2, "one of another database, one of a table not here");
-	let rows: Vec<(i64, String)> = c.query("SELECT id, name FROM public.yt_light_live ORDER BY id", &[]).await.unwrap()
+	let rows: Vec<(i64, String)> = c.query("SELECT id, name FROM public.yt_lite_live ORDER BY id", &[]).await.unwrap()
 		.iter().map(|r| (r.get(0), r.get(1))).collect();
 	assert_eq!(rows, vec![(2, "bb".to_string()), (3, "c".to_string())], "the row of the table held here is applied");
 	assert_eq!(pg.apply_error.lock().unwrap().as_str(), "", "a row not held is no error");
@@ -151,5 +151,5 @@ async fn yt_light_applies_what_comes_down_and_sends_its_outbox_up() {
 	above.took.lock().unwrap().clear();
 	assert_eq!(relay::up(&node, ABOVE).await, Outcome::Moved);
 	assert_eq!(above.took.lock().unwrap().keys().copied().collect::<Vec<_>>(), vec![p]);
-	c.batch_execute("DROP TABLE public.yt_light_live").await.unwrap();
+	c.batch_execute("DROP TABLE public.yt_lite_live").await.unwrap();
 }

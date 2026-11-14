@@ -10,7 +10,7 @@
 //! turn) it answers with none. The node it is linked to takes it for a node of its own
 //! az and says which (`told_az`); a light node cannot set that.
 //!
-//! A node's store (`crate::db::Db`) holds both: in yt-light, the service beside one
+//! A node's store (`crate::db::Db`) holds both: in yt-lite, the service beside one
 //! PostgreSQL instance, that database (`crate::pg`); inside an application, its own
 //! database (`crate::turso`), in one transaction with the cursor. Without one the rows live
 //! in memory: committed local batches wait in the outbox, and what comes down is kept as it
@@ -51,7 +51,7 @@ pub struct Node {
 	/// the channel to the target, kept between calls: its target, and - when it is TLS -
 	/// which change of the chain it was made with (calls.rs)
 	pub(crate) channel: Mutex<Option<(String, Option<u64>, tonic::transport::Channel)>>,
-	/// the database that is the store: yt-light's PostgreSQL, an application's Turso
+	/// the database that is the store: yt-lite's PostgreSQL, an application's Turso
 	pub db: Option<std::sync::Arc<dyn crate::db::Db>>,
 	/// its CA, offered at every sign-in, and the TLS of its calls once the cluster above
 	/// countersigned it (crate::tls)
@@ -69,7 +69,7 @@ impl Node {
 			tls: None }
 	}
 
-	/// yt-light's node: its store the database `pg` serves.
+	/// yt-lite's node: its store the database `pg` serves.
 	#[cfg(feature = "service")]
 	pub fn with_pg(uuid: u128, hosts: Vec<String>, pg: std::sync::Arc<crate::pg::Pg>) -> Self {
 		Node { db: Some(pg), ..Node::new(uuid, hosts) }

@@ -2,7 +2,7 @@ _version: 1
 # [i18n] yt-core's messages in Russian: one file per language (en, ru, and - not reviewed -
 # fr, de, zh, ja), every key in each. An error's message starts with its code, the same in
 # every language (src/i18n.rs tests it) - after a SQLSTATE such as 0A000: when it has one,
-# which the extension reads at position 0. YT light's codes have three digits, YT-Ennn:
+# which the extension reads at position 0. YT lite's codes have three digits, YT-Ennn:
 # yt-core-proto YT-E001 to YT-E029, yt-core YT-E030 and up. YT Cluster's own have four,
 # YT-Ennnn. ytserv reads these files too, by symlink (its locales/light.<lang>.yml): what a
 # shared link file says is the same there, under the same code.
@@ -22,11 +22,11 @@ light-leaf-no-down: "YT-E032 легкий узел - лист: вниз от н�
 light-call-tls: "%{host} (TLS): %{error}"
 light-call-then-plaintext: "%{first} - затем без TLS: %{error}"
 
-# === yt-light: its command line and its start (src/main.rs) ===
-light-usage-about: "yt-light - YT light: узел YT для одной базы данных этого экземпляра PostgreSQL, лист кластера YT.\nОн обслуживает unix-сокет расширения yt_cluster, хранит то, что фиксирует база данных, пока это\nне получит вышестоящий кластер, и применяет то, что приходит сверху.\n"
-light-usage-args: "  yt-light [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] [-v | -q]\n\n  <url>               база данных, которую он обслуживает, через unix-сокет экземпляра:\n                      postgresql://postgres@localhost/appdb?host=/var/run/postgresql\n  --config            его таблица конфигурации (по умолчанию yt_config расширения)\n  --file              строки key=value: настройки ниже, с приоритетом над таблицей конфигурации\n  --uuid              uuid этого узла (по умолчанию тот, что он хранит в таблице конфигурации)\n  -v, -q              отладка или только предупреждения; -h этот текст, -V версия\n"
-light-usage-settings: "Настройки - строка `name=value` в --file или строка таблицы конфигурации, модуль L:\n  upper       узлы вышестоящего кластера (http://host:port), через запятую; пробуются по очереди\n  upper_root  корень вышестоящего кластера, SHA256:... - его CA, как его печатает там\n              `ytctl --skv-status`; от этого кластера принимается только то, что ведет к нему\n  cluster_db  имя этой базы данных в вышестоящем кластере (по умолчанию ее собственное)\n  key_dir     где этот узел хранит свой CA (по умолчанию ~/.yt-light/<uuid этого узла>)\n  lang        язык его сообщений: en, ru, fr, de, zh или ja (по умолчанию язык базы данных)\n\n  INSERT INTO yt_config (name, module, value) VALUES ('upper', 'L', 'http://node1:7421');\n"
-light-usage-link: "Без az: у легкого узла нет az, и задать его нельзя. Узел, через который он входит, считает его\nузлом своего az - какого, показывает yt_info, - и передает ему то, что хранит этот az.\n\nСвязь: вышестоящий кластер допускает этот узел по его CA, созданному при первом запуске. Оператор\nкластера одобряет этот CA на лидере кластера после того, как узел вошел: `ytctl\n--skv-approve <uuid> --fingerprint <fp>` - отпечаток yt-light пишет в журнал при запуске. После\nэтого кластер подписывает CA, и каждый вызов к кластеру идет по TLS.\n\nОшибки: каждая начинается со своего кода, YT-Ennn - после SQLSTATE, например 0A000:, если он\nесть; https://docs.dbinvent.com/errors/<code> объясняет ее.\n"
+# === yt-lite: its command line and its start (src/main.rs) ===
+light-usage-about: "yt-lite - YT lite: узел YT для одной базы данных этого экземпляра PostgreSQL, лист кластера YT.\nОн обслуживает unix-сокет расширения yt_cluster, хранит то, что фиксирует база данных, пока это\nне получит вышестоящий кластер, и применяет то, что приходит сверху.\n"
+light-usage-args: "  yt-lite [--db] <url> [--config <schema.table>] [--file <file>] [--uuid <uuid>] [-v | -q]\n\n  <url>               база данных, которую он обслуживает, через unix-сокет экземпляра:\n                      postgresql://postgres@localhost/appdb?host=/var/run/postgresql\n  --config            его таблица конфигурации (по умолчанию yt_config расширения)\n  --file              строки key=value: настройки ниже, с приоритетом над таблицей конфигурации\n  --uuid              uuid этого узла (по умолчанию тот, что он хранит в таблице конфигурации)\n  -v, -q              отладка или только предупреждения; -h этот текст, -V версия\n"
+light-usage-settings: "Настройки - строка `name=value` в --file или строка таблицы конфигурации, модуль L:\n  upper       узлы вышестоящего кластера (http://host:port), через запятую; пробуются по очереди\n  upper_root  корень вышестоящего кластера, SHA256:... - его CA, как его печатает там\n              `ytctl --skv-status`; от этого кластера принимается только то, что ведет к нему\n  cluster_db  имя этой базы данных в вышестоящем кластере (по умолчанию ее собственное)\n  key_dir     где этот узел хранит свой CA (по умолчанию ~/.yt-lite/<uuid этого узла>)\n  lang        язык его сообщений: en, ru, fr, de, zh или ja (по умолчанию язык базы данных)\n\n  INSERT INTO yt_config (name, module, value) VALUES ('upper', 'L', 'http://node1:7421');\n"
+light-usage-link: "Без az: у легкого узла нет az, и задать его нельзя. Узел, через который он входит, считает его\nузлом своего az - какого, показывает yt_info, - и передает ему то, что хранит этот az.\n\nСвязь: вышестоящий кластер допускает этот узел по его CA, созданному при первом запуске. Оператор\nкластера одобряет этот CA на лидере кластера после того, как узел вошел: `ytctl\n--skv-approve <uuid> --fingerprint <fp>` - отпечаток yt-lite пишет в журнал при запуске. После\nэтого кластер подписывает CA, и каждый вызов к кластеру идет по TLS.\n\nОшибки: каждая начинается со своего кода, YT-Ennn - после SQLSTATE, например 0A000:, если он\nесть; https://docs.dbinvent.com/errors/<code> объясняет ее.\n"
 light-args: "YT-E033 командная строка: %{error}"
 light-no-setting: "YT-E034 нет настройки %{name}: строка `%{name}=...` в --file или строка таблицы конфигурации, модуль L: INSERT INTO yt_config (name, module, value) VALUES ('%{name}', 'L', '...')"
 light-no-key-dir: "YT-E035 не задан key_dir и нет HOME: негде хранить CA этого узла - строка `key_dir=...` в --file или строка таблицы конфигурации, модуль L"
@@ -37,17 +37,17 @@ light-socket: "YT-E039 unix-сокет: %{error}"
 light-socket-stopped: "YT-E040 сервер unix-сокета остановлен: %{error}"
 light-ca: "YT-E041 CA этого узла: %{error}"
 light-no-root: "YT-E042 не задан upper_root: от вышестоящего кластера ничего не принимается, поэтому TLS к нему нет - задайте SHA256:... его CA, как его печатает там `ytctl --skv-status`"
-light-start: "yt-light %{version}: лист кластера %{hosts}"
+light-start: "yt-lite %{version}: лист кластера %{hosts}"
 light-ca-line: "CA этого узла %{fingerprint} (хранится в %{dir}): вышестоящий кластер одобряет его на своем лидере - ytctl --skv-approve %{uuid} --fingerprint %{fingerprint}"
 light-tls-line: "TLS связи: %{status}"
 light-serving: "обслуживает базу данных %{db} (в вышестоящем кластере - %{cluster_db}) через %{socket}, узел %{uuid}"
-light-stopped: "yt-light остановлен: %{why}"
+light-stopped: "yt-lite остановлен: %{why}"
 light-signal-interrupt: "прерывание"
 light-signal-terminate: "завершение"
 light-signal-hangup: "отключение терминала"
 light-signal-none: "нет обработчика сигналов"
 
-# === yt-light: the link to the cluster above, a turn a second (src/main.rs) ===
+# === yt-lite: the link to the cluster above, a turn a second (src/main.rs) ===
 light-ask-failed: "YT-E043 запрос позиции вышестоящего кластера: %{error}"
 light-fetch-failed: "YT-E044 получение из вышестоящего кластера: %{error} - дальше следующий узел"
 light-apply-failed: "YT-E045 применение пакета из вышестоящего кластера: %{error} - повтор на следующем шаге"
@@ -69,7 +69,7 @@ light-signed-in-az: "вход в вышестоящий кластер выпо�
 # === the unix socket the extension calls (src/service.rs) ===
 light-chmod: "YT-E054 не удается выполнить chmod 0777 %{path}: %{error}"
 light-row-no-table: "YT-E055 строка без указания таблицы"
-light-one-database: "0A000: YT-E056 YT light обслуживает одну базу данных (%{db}); для нескольких баз в одном экземпляре нужна полная версия"
+light-one-database: "0A000: YT-E056 YT lite обслуживает одну базу данных (%{db}); для нескольких баз в одном экземпляре нужна полная версия"
 light-full-version: "0A000: YT-E057 %{what} требует полной версии YT Cluster"
 light-unknown-completion: "YT-E058 неизвестное завершение %{value}"
 light-complete-failed: "YT-E059 завершение tx=%{tx}: %{error}"
@@ -78,7 +78,7 @@ light-info-refused: "info: '%{what}' отклонено - это есть в п�
 light-info-az-none: "нет: в вышестоящем кластере нет az"
 light-info-az-shared: "%{az} - az вышестоящего узла, общий с ним; своего az у легкого узла нет"
 light-info-az-untold: "еще не сообщен: вход не разрешен"
-light-info-light: "YT light: одна база данных, лист кластера YT"
+light-info-light: "YT lite: одна база данных, лист кластера YT"
 
 # === the store, PostgreSQL (src/pg.rs) ===
 light-db-url: "YT-E060 URL базы данных: %{error}"

@@ -6,7 +6,7 @@ name: "audit&geiger"   # the badge's label, as Schema Guard's
 # out with nothing changed here.
 #
 # diff_doc comes from crates.io (1.1 on, its `proto` feature): the run checks out this
-# repository alone, under yt-cluster-light/.
+# repository alone, under yt-cluster-lite/.
 on:
   push:
     branches-ignore: ["dependabot/**"]   # their pull request runs it
@@ -30,11 +30,11 @@ jobs:
         # bash -eo pipefail: GitHub's default shell has no pipefail, and a piped step
         # (cargo geiger | tee) would hide the command's failure
         shell: bash
-        working-directory: yt-cluster-light
+        working-directory: yt-cluster-lite
     steps:
       - uses: actions/checkout@v7
         with:
-          path: yt-cluster-light
+          path: yt-cluster-lite
       - uses: dtolnay/rust-toolchain@stable
       - uses: taiki-e/install-action@v2
         with:
@@ -58,13 +58,13 @@ jobs:
         # bash -eo pipefail: GitHub's default shell has no pipefail, and a piped step
         # (cargo geiger | tee) would hide the command's failure
         shell: bash
-        working-directory: yt-cluster-light
+        working-directory: yt-cluster-lite
     steps:
       - uses: actions/checkout@v7
         with:
-          path: yt-cluster-light
+          path: yt-cluster-lite
       - uses: dtolnay/rust-toolchain@stable
-      # the crates build: protoc for the protos, the OpenSSL headers for yt-light's TLS
+      # the crates build: protoc for the protos, the OpenSSL headers for yt-lite's TLS
       - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
       - uses: taiki-e/install-action@v2
         with:

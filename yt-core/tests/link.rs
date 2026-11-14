@@ -166,7 +166,7 @@ async fn a_node_above_that_does_not_answer_is_said_and_the_next_host_tried() {
 
 /// [compat] a node of a YT Cluster before 1.21 serves no Link service: the sign-in says so
 /// (YT-E077, the host named, where tonic's answer has no text), and the next host of
-/// `upper` signs the light node in - as yt-light's loop turns to it after a failed sign-in
+/// `upper` signs the light node in - as yt-lite's loop turns to it after a failed sign-in
 #[tokio::test]
 async fn a_node_with_no_link_service_is_said_and_the_next_host_signs_in() {
 	let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

@@ -3,7 +3,7 @@
 //! what it takes from the answer. (ytserv has its own `offer.rs`: the secret store,
 //! rotation, continuity, the meter and splits.)
 //!
-//! yt-light offers its one CA (crate::tls): the certificate as held, its key as the one
+//! yt-lite offers its one CA (crate::tls): the certificate as held, its key as the one
 //! live, what it holds of the upper's roots, and the key's proof over the challenge the
 //! last answer handed (`signin::proof_message`); from the answer it keeps the next
 //! challenge, and takes the countersigned CA and the roots. A light node with no CA - in

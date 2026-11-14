@@ -1,4 +1,4 @@
-yt-cluster-light (ytcl) - YT Cluster light: the PostgreSQL extension of YT Cluster
+yt-cluster-lite (ytcl) - YT Cluster lite: the PostgreSQL extension of YT Cluster
 (ytpgc), the public protos and their Rust types (yt-core-proto), and a YT node for an
 application's embedded database (yt-core).
 

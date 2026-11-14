@@ -6,7 +6,7 @@ drawn here, in shields.io's flat look (20 px, 11 px Verdana), and CI keeps it on
 
     python3 .github/coverage-badge.py lcov.info coverage.svg [--min PERCENT]
 
---min: the check (owner, 2026-11-13: yt-light's target is 80) - the badge is written, then the
+--min: the check (owner, 2026-11-13: yt-lite's target is 80) - the badge is written, then the
 run fails (exit 1) when the line coverage is below PERCENT, saying by how much.
 """
 import os

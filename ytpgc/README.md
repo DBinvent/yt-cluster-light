@@ -12,7 +12,7 @@
 
 ## Version
 
-`VERSION`, at the root of the repository, is YT light's version, in step with YT Cluster's:
+`VERSION`, at the root of the repository, is YT lite's version, in step with YT Cluster's:
 `1.21.0`. The extension takes its version from it, and the two crates say the same in their
 `Cargo.toml`.
 

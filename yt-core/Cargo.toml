@@ -2,7 +2,7 @@
 name = "yt-core"
 version = "1.21.0"
 edition.workspace = true
-description = "YT Cluster light: a YT node for one database, linked to a YT cluster above - inside an application, or beside one PostgreSQL instance (yt-light)"
+description = "YT Cluster lite: a YT node for one database, linked to a YT cluster above - inside an application, or beside one PostgreSQL instance (yt-lite)"
 
 
 authors = ["Vladimir Krinitsyn <v.krinitsyn@gmail.com>", "DBinvent <support@dbinvent.com>"]
@@ -16,12 +16,12 @@ keywords = ["postgres"]
 
 [features]
 default = ["service"]
-# yt-light: the service beside one PostgreSQL instance, behind the extension's unix
+# yt-lite: the service beside one PostgreSQL instance, behind the extension's unix
 # socket, with PostgreSQL as its store (src/main.rs, src/service.rs, src/pg.rs), and its CA and
 # TLS to the az above (src/tls.rs)
 service = ["tls", "dep:marg", "dep:tokio-postgres", "dep:tokio-stream", "dep:slog", "dep:slog-term", "dep:slog-async",
 	"dep:prost", "yt-core-proto/server", "tokio/rt-multi-thread", "tokio/signal", "tokio/fs"]
-# the node's CA and the TLS of its calls to the cluster above (src/tls.rs): yt-light's, and an
+# the node's CA and the TLS of its calls to the cluster above (src/tls.rs): yt-lite's, and an
 # application's that links its own database (feature turso)
 tls = ["dep:openssl", "dep:tokio-openssl", "dep:hyper-util", "dep:tower", "dep:base64", "tokio/net"]
 # the light node inside an application, on Turso, the application's own database
@@ -32,7 +32,7 @@ turso = ["tls", "lite", "dep:turso"]
 lite = ["dep:serde_json", "dep:prost", "dep:base64"]
 
 [[bin]]
-name = "yt-light"
+name = "yt-lite"
 path = "src/main.rs"
 required-features = ["service"]
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! YT Cluster light: the Rust types of the base, db and link protos, with their helper
+//! YT Cluster lite: the Rust types of the base, db and link protos, with their helper
 //! code, and the gRPC client and server stubs (the server ones behind the `server`
 //! feature).
 use std::cmp::{self, Ordering};

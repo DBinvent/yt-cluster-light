@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! yt-light: YT light as a service beside one PostgreSQL instance (yt-light.md 16). It
+//! yt-lite: YT lite as a service beside one PostgreSQL instance (yt-lite.md 16). It
 //! serves the extension's unix socket for one database of that instance, keeps the
 //! rows it captures in that database until the cluster above has them, applies there
 //! what comes down, and is a leaf of that YT cluster: one node with no az, the lowest
@@ -30,7 +30,7 @@ fn usage() -> String {
 	format!("{}\n{}\n{}\n{}", t!("light-usage-about"), t!("light-usage-args"), t!("light-usage-settings"), t!("light-usage-link"))
 }
 
-/// yt-light's settings, from `--file` (`file`) first, then the config table's module-L
+/// yt-lite's settings, from `--file` (`file`) first, then the config table's module-L
 /// rows (`rows`).
 #[derive(Debug, Default, PartialEq)]
 struct Settings {
@@ -54,12 +54,12 @@ fn settings(file: &HashMap<String, String>, rows: &HashMap<String, String>) -> R
 	})
 }
 
-/// Where the CA is kept: `key_dir`, else `~/.yt-light/<uuid>` - one directory per node,
+/// Where the CA is kept: `key_dir`, else `~/.yt-lite/<uuid>` - one directory per node,
 /// for several instances on one host.
 fn key_dir(set: Option<&str>, home: Option<&str>, uuid: &str) -> Result<std::path::PathBuf, String> {
 	match (set, home.filter(|h| !h.trim().is_empty())) {
 		(Some(d), _) => Ok(std::path::PathBuf::from(d)),
-		(None, Some(h)) => Ok(std::path::Path::new(h).join(".yt-light").join(uuid)),
+		(None, Some(h)) => Ok(std::path::Path::new(h).join(".yt-lite").join(uuid)),
 		(None, None) => Err(t!("light-no-key-dir")),
 	}
 }
@@ -72,14 +72,14 @@ fn logger(level: &str) -> Result<Logger, String> {
 	Ok(Logger::root(slog::LevelFilter::new(drain, level).fuse(), slog::o!()))
 }
 
-/// Whether process `pid` is a node that serves this socket: yt-light, or a YT Cluster
+/// Whether process `pid` is a node that serves this socket: yt-lite, or a YT Cluster
 /// node (ytserv) - a pid the system gave to another program since is no holder.
 fn holds(pid: &str) -> bool {
 	let pid = pid.trim();
 	!pid.is_empty() && pid != std::process::id().to_string()
 		&& std::fs::read(format!("/proc/{}/cmdline", pid)).map(|c| {
 			let c = String::from_utf8_lossy(&c);
-			c.contains("yt-light") || c.contains("ytserv")
+			c.contains("yt-lite") || c.contains("ytserv")
 		}).unwrap_or(false)
 }
 
@@ -267,7 +267,7 @@ const LOGO: [&str; 16] = [
 /// [banner] The product and its version, "Powered by" the logo, and the slogan under it -
 /// nothing beside the logo; as Schema Guard's
 fn banner() -> String {
-	let mut b = format!("YT light {}\nPowered by\n\n", env!("CARGO_PKG_VERSION"));
+	let mut b = format!("YT lite {}\nPowered by\n\n", env!("CARGO_PKG_VERSION"));
 	for l in LOGO.iter() {
 		b.push_str(l.trim_end());
 		b.push('\n');
@@ -279,17 +279,17 @@ fn banner() -> String {
 #[tokio::main(flavor = "multi_thread", worker_threads = 4)]
 async fn main() -> ExitCode {
 	// [banner] DBinvent's, on a console run only - stderr is a terminal - so a service's
-	// log and `yt-light -V` (stdout) stay as they were; as Schema Guard does
+	// log and `yt-lite -V` (stdout) stay as they were; as Schema Guard does
 	if std::io::IsTerminal::is_terminal(&std::io::stderr()) {
 		eprint!("{}", banner());
 	}
 	// [i18n] the system locale's language until the database and the settings are read
 	yt_core::i18n::set(yt_core::i18n::pick(None, None, yt_core::i18n::system_locale().as_deref()));
 	// the command line as YT Cluster's node takes it (marg): -V prints the version and exits
-	let m = match marg::ArgConfig::from_args2("yt-light", env!("CARGO_PKG_VERSION")) {
+	let m = match marg::ArgConfig::from_args2("yt-lite", env!("CARGO_PKG_VERSION")) {
 		Ok(m) => m,
 		Err(e) => {
-			eprintln!("yt-light: {}\n\n{}", t!("light-args", error = e), usage());
+			eprintln!("yt-lite: {}\n\n{}", t!("light-args", error = e), usage());
 			return ExitCode::from(2);
 		}
 	};
@@ -304,7 +304,7 @@ async fn main() -> ExitCode {
 	let log = match logger(level) {
 		Ok(l) => l,
 		Err(e) => {
-			eprintln!("yt-light: {}", e);
+			eprintln!("yt-lite: {}", e);
 			return ExitCode::from(2);
 		}
 	};
@@ -408,7 +408,7 @@ mod tests {
 	fn banner_shows_the_product_the_logo_and_the_slogan() {
 		let b = banner();
 		let lines: Vec<&str> = b.lines().collect();
-		assert_eq!(lines[0], format!("YT light {}", env!("CARGO_PKG_VERSION")), "{}", b);
+		assert_eq!(lines[0], format!("YT lite {}", env!("CARGO_PKG_VERSION")), "{}", b);
 		assert_eq!(lines[1], "Powered by", "{}", b);
 		assert!(b.contains("DDDDD") && b.contains("BBBBB") && b.contains("nnn"), "{}", b);
 		assert!(b.trim_end().ends_with("Postgres cluster and app server - check DBinvent.com"), "{}", b);
@@ -454,7 +454,7 @@ mod tests {
 		assert_eq!((a.upper_root.as_deref(), a.key_dir.as_deref()), (Some("SHA256:abc"), Some("/k")));
 		let u = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 		assert_eq!(key_dir(Some("/k"), Some("/home/x"), u).unwrap(), Path::new("/k"));
-		assert_eq!(key_dir(None, Some("/var/lib/postgresql"), u).unwrap(), Path::new("/var/lib/postgresql/.yt-light").join(u),
+		assert_eq!(key_dir(None, Some("/var/lib/postgresql"), u).unwrap(), Path::new("/var/lib/postgresql/.yt-lite").join(u),
 			"one directory per node: several instances on one host");
 		let e = key_dir(None, Some(" "), u).unwrap_err();
 		assert!(e.starts_with("YT-E035 ") && e.contains("key_dir"), "{}", e);
@@ -462,7 +462,7 @@ mod tests {
 
 	#[test]
 	fn a_socket_held_by_a_live_process_is_not_taken() {
-		let dir = std::env::temp_dir().join(format!("yt-light-claim-{}", std::process::id()));
+		let dir = std::env::temp_dir().join(format!("yt-lite-claim-{}", std::process::id()));
 		let _ = std::fs::create_dir_all(&dir);
 		let socket = dir.join(".s.YT.5999").to_string_lossy().to_string();
 		std::fs::write(format!("{}.pid", socket), "1").unwrap(); // init: alive, but no node
@@ -490,7 +490,7 @@ mod tests {
 	#[test]
 	fn the_usage_names_every_option_and_setting() {
 		let u = usage();
-		for word in ["yt-light [--db] <url>", "--config", "--file", "--uuid", "upper ", "upper_root", "cluster_db", "key_dir", "lang ",
+		for word in ["yt-lite [--db] <url>", "--config", "--file", "--uuid", "upper ", "upper_root", "cluster_db", "key_dir", "lang ",
 			"--skv-approve <uuid> --fingerprint <fp>", "https://docs.dbinvent.com/errors/<code>", "YT-Ennn"] {
 			assert!(u.contains(word), "{}", word);
 		}

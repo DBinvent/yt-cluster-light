@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
 //! A throwaway PostgreSQL with the yt_cluster extension in a database of it, for the tests that
-//! need a real one (pg_live.rs, pg_service.rs, yt_light_bin.rs). Nothing is installed: the
+//! need a real one (pg_live.rs, pg_service.rs, yt_lite_bin.rs). Nothing is installed: the
 //! server runs from its own binaries on a data directory of its own, its socket in a directory
 //! of its own, and the extension's script runs in database `appdb` with its C functions bound
 //! to the library the variable names - what CREATE EXTENSION would do, but for the catalog
 //! entry no test needs.
 //!
-//!   YT_LIGHT_EXT_SO   the extension's library for this PostgreSQL's major (`make -C ytpgc`
+//!   YT_LITE_EXT_SO   the extension's library for this PostgreSQL's major (`make -C ytpgc`
 //!                     builds ytpgc/yt_cluster.so); unset: the test is skipped
 //!   PG_BIN            the server's binaries (default: `pg_config --bindir`)
 #![allow(dead_code)]
@@ -16,7 +16,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 pub struct TmpPg {
 	pub dir: PathBuf,
-	/// where the server's socket is - and yt-light's, which the extension finds beside it
+	/// where the server's socket is - and yt-lite's, which the extension finds beside it
 	pub sockdir: PathBuf,
 	pub port: u16,
 	bin: PathBuf,
@@ -34,13 +34,13 @@ pub fn script(so: &str) -> String {
 
 impl TmpPg {
 	/// A server up, `appdb` with the extension's objects in it; None - the test skipped - when
-	/// YT_LIGHT_EXT_SO is not set or the server's binaries are not here.
+	/// YT_LITE_EXT_SO is not set or the server's binaries are not here.
 	pub async fn start(tag: &str) -> Option<TmpPg> {
-		let Ok(so) = std::env::var("YT_LIGHT_EXT_SO") else {
-			eprintln!("skipped: YT_LIGHT_EXT_SO names no extension library");
+		let Ok(so) = std::env::var("YT_LITE_EXT_SO") else {
+			eprintln!("skipped: YT_LITE_EXT_SO names no extension library");
 			return None;
 		};
-		assert!(Path::new(&so).is_file(), "YT_LIGHT_EXT_SO: no {so}");
+		assert!(Path::new(&so).is_file(), "YT_LITE_EXT_SO: no {so}");
 		let bin = match std::env::var("PG_BIN") {
 			Ok(b) => PathBuf::from(b),
 			Err(_) => PathBuf::from(String::from_utf8(Command::new("pg_config").arg("--bindir").output().ok()?.stdout).ok()?.trim()),

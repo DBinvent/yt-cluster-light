@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! yt: YT Cluster light as a SQLite loadable extension (README.md). A SQLite database file is
+//! yt: YT Cluster lite as a SQLite loadable extension (README.md). A SQLite database file is
 //! a light node of a YT cluster: the tables set up in it go up to the cluster, and what the
-//! cluster holds of them comes down - both ways, as yt-light does for PostgreSQL and the
+//! cluster holds of them comes down - both ways, as yt-lite does for PostgreSQL and the
 //! `turso` feature for an application on Turso. One store for all three SQLite-dialect
 //! engines: yt_core::lite.
 //!
@@ -189,7 +189,7 @@ fn link(c: &Context<'_>, given: Option<(String, Option<String>)>) -> Result<Stri
 	let key_dir = setting(&db, "key_dir")?.map(PathBuf::from).unwrap_or_else(|| {
 		let home = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")).map(PathBuf::from)
 			.unwrap_or_else(std::env::temp_dir);
-		home.join(".yt-light").join(uuid.to_string())
+		home.join(".yt-lite").join(uuid.to_string())
 	});
 	link::start(link::Settings { path: file, upper, upper_root: root.map(|r| r.trim().to_string()), cluster_db, key_dir, uuid })
 		.map_err(user)
