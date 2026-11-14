@@ -15,11 +15,11 @@ node, the lowest there is, with nothing below it. It comes in three forms:
 ## No az
 
 A YT Cluster places its nodes in azs (zones), and relates clusters to each other by them:
-which cluster is above, which leader signs in there, which neighbours it dials. A light
+which cluster is above, which leader signs in there, which neighbours it dials. A lite
 node is none of that. It is never a leader, it has no cluster below it, and it dials no
 neighbour, so it has no az and no setting for one.
 
-The cluster node it signs in through takes it for a node of that node's own az. The light
+The cluster node it signs in through takes it for a node of that node's own az. The lite
 node is told which az that is (`yt_info()` shows it) and cannot change it. That az decides
 which tables it takes: see [Tables](#tables).
 
@@ -69,7 +69,7 @@ INSERT INTO yt_config (name, module, value) VALUES ('upper', 'L', 'http://node1:
 ### Linking it to a cluster
 
 The cluster needs its secret store and TLS between its nodes. It needs no entry for the
-light node: no az, no roster row. Its operator approves the light node's CA, and that is
+lite node: no az, no roster row. Its operator approves the lite node's CA, and that is
 all.
 
 1. On the cluster, `ytctl --skv-status` prints its CA, `SHA256:...`. That goes in
@@ -85,15 +85,15 @@ all.
 
 ### Tables
 
-A light node takes the tables of the az it shares: the az of the cluster node it is linked
+A lite node takes the tables of the az it shares: the az of the cluster node it is linked
 to.
 
-- **On the cluster**, a table goes to light nodes only when it has an az rule (it is
+- **On the cluster**, a table goes to lite nodes only when it has an az rule (it is
   *routed*). A table with no rule is the cluster's own and never leaves it. Of the routed
-  tables, a light node is sent those its node's az holds, and its own writes are taken for
+  tables, a lite node is sent those its node's az holds, and its own writes are taken for
   those that az may write. `no_down` and `no_up` keep a table off the link in that
   direction. In a cluster with no azs, every routed table goes both ways.
-- **On the light node**, a table syncs as on a cluster node: when its config table holds
+- **On the lite node**, a table syncs as on a cluster node: when its config table holds
   an A row for it (`schema.table`). `select yt_setup('<schema.table>')` writes one and puts
   the trigger that captures its writes; an A row alone (`INSERT INTO yt_config (name,
   module, value) VALUES ('<schema.table>', 'A', '')`) syncs a table whose rows only come
@@ -117,7 +117,7 @@ to.
 | `database` | the database it serves |
 | `cluster_database` | that database's name in the cluster above |
 | `hosts_above` | the nodes it dials |
-| `az` | the az the node above takes this one to be in: its own. Shown only; a light node has no az to set. |
+| `az` | the az the node above takes this one to be in: its own. Shown only; a lite node has no az to set. |
 | `outbox` | transactions in `yt_outbox` that the cluster above does not hold yet |
 | `open_transactions` | transactions that have not prepared yet |
 | `unknown_transactions` | transactions whose outcome the database could not report |
@@ -143,7 +143,7 @@ cluster that is being upgraded from 1.20:
 
 - A node still at 1.20 has no Link service. yt-lite says so (`YT-E077`, the node named)
   and signs in through the next node of `upper`.
-- A leader still at 1.20 does not admit a light node. yt-lite says so (`YT-E078`) and signs
+- A leader still at 1.20 does not admit a lite node. yt-lite says so (`YT-E078`) and signs
   in again every minute; it is admitted once the leader runs 1.21.
 - Rows cross as they do in a cluster of one version, and the extension of either version
   works under either node (`../ytpgc/README.md`, "Version").
@@ -153,8 +153,8 @@ cluster that is being upgraded from 1.20:
 - One database per instance. Several databases, and the cluster itself, need the full
   version.
 - It is a leaf: nothing goes further down from it.
-- One hop. A light node gets what its cluster commits. Rows that the cluster itself
-  received over a link (from a cluster above it, or from another light node) are not passed
+- One hop. A lite node gets what its cluster commits. Rows that the cluster itself
+  received over a link (from a cluster above it, or from another lite node) are not passed
   on.
 - A schema change is not followed. Run `yt_setup` again after one.
 - A local write to a table that comes down from the cluster is not refused here.
@@ -162,7 +162,7 @@ cluster that is being upgraded from 1.20:
 ## Inside an application: Turso
 
 With the `turso` feature (and `default-features = false`), an application on Turso is a
-light node itself: the node runs on the application's tokio runtime and keeps its rows in
+lite node itself: the node runs on the application's tokio runtime and keeps its rows in
 the application's database. `../yt-turso-load` is a whole example: a load like pgbench's on
 Turso, which the end-to-end tests run against a cluster.
 
@@ -212,9 +212,9 @@ tokio::spawn(yt_core::leaf::run(node, status.clone(), |said| println!("{said}"))
 `src/core` holds the link to the cluster above, in two kinds of files.
 
 - **Shared files:** `pos`, `route`, `relay` and `signin`. YT Cluster's server compiles
-  these same files. They are written for a link between two azs; a light node has none,
+  these same files. They are written for a link between two azs; a lite node has none,
   and answers with none wherever they ask.
-- **The light node's own versions** of `store`, `members`, `calls` and `offer`. The shared
+- **The lite node's own versions** of `store`, `members`, `calls` and `offer`. The shared
   files reach the node only through these. The server keeps its own files under these
   names.
 

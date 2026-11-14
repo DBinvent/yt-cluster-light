@@ -15,7 +15,7 @@ keywords = ["postgres"]
 
 [features]
 default = ["server"]
-# the gRPC server stubs (LocalGrpc, Link): what a node serves. A light node only calls.
+# the gRPC server stubs (LocalGrpc, Link): what a node serves. A lite node only calls.
 server = []
 
 [dependencies]

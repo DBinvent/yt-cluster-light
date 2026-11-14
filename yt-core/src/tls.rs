@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! yt-lite's CA, and its TLS to the cluster above. A light node has no az: its CA is its
+//! yt-lite's CA, and its TLS to the cluster above. A lite node has no az: its CA is its
 //! own identity across the link, under its node uuid, as a lower cluster's CA is that
 //! cluster's:
 //!
@@ -62,12 +62,12 @@ const CA_SIGNED: &str = "ca-signed.crt";
 const ROOTS: &str = "roots.pem";
 
 fn e<E: std::fmt::Display>(what: &'static str) -> impl Fn(E) -> String {
-	move |x| t!("light-tls-internal", what = what, error = x)
+	move |x| t!("lite-tls-internal", what = what, error = x)
 }
 
 /// A file's error, said with its path.
 fn file_error<E: std::fmt::Display>(path: &Path) -> impl Fn(E) -> String + '_ {
-	move |x| t!("light-file", path = path.display(), error = x)
+	move |x| t!("lite-file", path = path.display(), error = x)
 }
 
 /// `SHA256:<base64>` of a key's SPKI DER: the form the cluster above shows its operator.
@@ -157,7 +157,7 @@ fn make_ca(uuid: &str) -> Result<(PKey<Private>, X509), String> {
 fn ca_cert(key: &PKey<Private>, uuid: &str) -> Result<X509, String> {
 	let mut name = X509NameBuilder::new().map_err(e("ca name"))?;
 	name.append_entry_by_nid(Nid::ORGANIZATIONNAME, "yt-cluster").map_err(e("ca name"))?;
-	name.append_entry_by_nid(Nid::COMMONNAME, &format!("light {} CA", uuid)).map_err(e("ca name"))?;
+	name.append_entry_by_nid(Nid::COMMONNAME, &format!("lite {} CA", uuid)).map_err(e("ca name"))?;
 	let name = name.build();
 	let mut b = X509Builder::new().map_err(e("ca cert"))?;
 	b.set_version(2).map_err(e("ca cert"))?;
@@ -263,7 +263,7 @@ struct Held {
 	roots: Vec<Vec<u8>>,
 }
 
-/// The CA of a light node and what it took from the cluster above.
+/// The CA of a lite node and what it took from the cluster above.
 pub struct Tls {
 	dir: PathBuf,
 	/// the root of the cluster above pinned at setup (setting `upper_root`)
@@ -302,7 +302,7 @@ impl Tls {
 				let ca = X509::from_pem(&c).map_err(e("ca.crt"))?;
 				let mine = key.public_key_to_der().map_err(e("ca.key"))?;
 				if ca.public_key().and_then(|p| p.public_key_to_der()).ok() != Some(mine) {
-					return Err(t!("light-ca-mismatch", dir = dir.display()));
+					return Err(t!("lite-ca-mismatch", dir = dir.display()));
 				}
 				(key, ca)
 			}
@@ -320,9 +320,9 @@ impl Tls {
 				put(dir, CA_CERT, &ca.to_pem().map_err(e("ca.crt"))?, false)?;
 				(key, ca)
 			}
-			(None, Some(_)) => return Err(t!("light-ca-key-lost", dir = dir.display())),
+			(None, Some(_)) => return Err(t!("lite-ca-key-lost", dir = dir.display())),
 		};
-		let fp = cert_fp(&ca).ok_or_else(|| t!("light-ca-no-key"))?;
+		let fp = cert_fp(&ca).ok_or_else(|| t!("lite-ca-no-key"))?;
 		let mut held = Held::default();
 		if let Some(d) = read(dir, CA_SIGNED)? {
 			let c = X509::from_pem(&d).map_err(e("ca-signed.crt"))?;
@@ -384,15 +384,15 @@ impl Tls {
 	pub fn status(&self) -> String {
 		let h = self.held.lock().unwrap_or_else(|x| x.into_inner());
 		match (&h.signed, h.roots.len()) {
-			(Some(_), n) if n > 0 => t!("light-tls-status-ready", count = n),
-			_ if self.pin.is_none() => t!("light-tls-status-no-pin"),
-			_ => t!("light-tls-status-waiting"),
+			(Some(_), n) if n > 0 => t!("lite-tls-status-ready", count = n),
+			_ if self.pin.is_none() => t!("lite-tls-status-no-pin"),
+			_ => t!("lite-tls-status-waiting"),
 		}
 	}
 
 	/// What a sign-in offers: the CA as held, its key as the one live, the roots' hash, and
 	/// the key's proof over `challenge` (none without one) for this node, `id` - its uuid,
-	/// where a cluster's proof names its az: a light node has none.
+	/// where a cluster's proof names its az: a lite node has none.
 	pub fn offer(&self, id: &str, challenge: &[u8]) -> Offer {
 		let h = self.held.lock().unwrap_or_else(|x| x.into_inner());
 		let mine = h.signed.as_ref().unwrap_or(&self.ca);
@@ -427,13 +427,13 @@ impl Tls {
 
 	fn take_certs(&self, g: &LinkGrant) -> Result<Option<String>, String> {
 		let Some(pin) = self.pin.as_deref() else {
-			return Err(t!("light-root-not-pinned"));
+			return Err(t!("lite-root-not-pinned"));
 		};
 		let mut h = self.held.lock().unwrap_or_else(|x| x.into_inner());
 		let given = if g.ca_roots.is_empty() { h.roots.clone() } else { g.ca_roots.clone() };
 		let roots = accepted_roots(&given, pin, &h.roots);
 		if roots.is_empty() {
-			return Err(t!("light-root-no-chain", pin = pin));
+			return Err(t!("lite-root-no-chain", pin = pin));
 		}
 		let mut what = Vec::new();
 		if !g.ca_signed.is_empty() && h.signed.as_ref().and_then(|c| c.to_der().ok()).as_deref() != Some(&g.ca_signed[..]) {
@@ -441,11 +441,11 @@ impl Tls {
 			let ours = cert_fp(&signed).as_deref() == Some(self.fp.as_str()) && same_name(signed.subject_name(), self.ca.subject_name());
 			let chained = roots.iter().filter_map(|d| X509::from_der(d).ok()).any(|root| signed_by(&signed, &root));
 			if !ours || !chained {
-				return Err(t!("light-ca-not-ours"));
+				return Err(t!("lite-ca-not-ours"));
 			}
 			put(&self.dir, CA_SIGNED, &signed.to_pem().map_err(e("ca-signed.crt"))?, false)?;
 			h.signed = Some(signed);
-			what.push(t!("light-tls-countersigned"));
+			what.push(t!("lite-tls-countersigned"));
 		}
 		if !g.ca_roots.is_empty() && roots != h.roots {
 			let mut pem = Vec::new();
@@ -453,7 +453,7 @@ impl Tls {
 				pem.extend(X509::from_der(d).and_then(|c| c.to_pem()).map_err(e("roots.pem"))?);
 			}
 			put(&self.dir, ROOTS, &pem, false)?;
-			what.push(t!("light-tls-roots-held", count = roots.len()));
+			what.push(t!("lite-tls-roots-held", count = roots.len()));
 			h.roots = roots;
 		}
 		Ok(if what.is_empty() { None } else { Some(what.join(", ")) })

@@ -5,7 +5,7 @@ syntax = "proto3";
 // one cluster committed are carried to the other and applied there as a read-only
 // copy, outside the receiving cluster's own consensus, in the source cluster's order.
 //
-// A light node links the same way, to one cluster, and is no cluster and no az: a leaf
+// A lite node links the same way, to one cluster, and is no cluster and no az: a leaf
 // of that cluster. It names no az anywhere - the node it is linked to takes it for a
 // node of its own az, and a table's rows cross between them by that az's rules.
 package link;
@@ -14,14 +14,14 @@ import "base.proto";
 import "db.proto";
 
 // The upper cluster's side of a link. A lower cluster dials a regular node of the
-// cluster above; the cluster above never dials a lower one, nor a light node.
+// cluster above; the cluster above never dials a lower one, nor a lite node.
 service Link {
-	// the lower cluster's leader, or a light node, signs in: its CA, for the operator's
+	// the lower cluster's leader, or a lite node, signs in: its CA, for the operator's
 	// approval and then the link's TLS
 	rpc signin (LinkSignIn) returns (LinkGrant) {}
-	// down: what crossed to the lower az - to a light node - after its cursor
+	// down: what crossed to the lower az - to a lite node - after its cursor
 	rpc fetch (RelayFetch) returns (RelayBatch) {}
-	// up: what the lower az - a light node - committed, for the cluster above to apply
+	// up: what the lower az - a lite node - committed, for the cluster above to apply
 	rpc deliver (RelayBatch) returns (RelayAck) {}
 }
 
@@ -33,7 +33,7 @@ enum PeerAzLevel {
   LOWER = 3;
 }
 
-// The sign-in of a lower cluster, or of a light node. The CA fields are sent when the link
+// The sign-in of a lower cluster, or of a lite node. The CA fields are sent when the link
 // runs TLS and the caller holds its CA key:
 //   ca_cert       its current CA certificate as it holds it: self-signed until the
 //                 upper signs it, then the signed one
@@ -45,7 +45,7 @@ enum PeerAzLevel {
 //   ca_proof      possession of ca_cert's key, over the upper's challenge
 message LinkSignIn {
 	base.PeerUuid peer = 1;
-	// the az a lower cluster signs in as. Absent from a light node: it has no az - the
+	// the az a lower cluster signs in as. Absent from a lite node: it has no az - the
 	// cluster knows it by its node uuid (peer), and by the CA its operator approved
 	base.PeerUuid target_az = 3;
 	// the cluster signed in to, as the caller sees it: UPPER
@@ -76,8 +76,8 @@ message LinkGrant {
 	bytes ca_signed = 15;
 	// the upper's root certificates, DER
 	repeated bytes ca_roots = 16;
-	// to a light node: the az it is taken to be in - the az of the node it signed in
-	// through, empty in a cluster with no azs. Told, never asked: a light node cannot
+	// to a lite node: the az it is taken to be in - the az of the node it signed in
+	// through, empty in a cluster with no azs. Told, never asked: a lite node cannot
 	// set it
 	string az = 12;
 }
@@ -93,7 +93,7 @@ message RelayPos {
 // to its az after `from`.
 message RelayFetch {
 	base.BaseApi base = 1;
-	// the receiving az, as the source's catalogue names it. Empty from a light node, and
+	// the receiving az, as the source's catalogue names it. Empty from a lite node, and
 	// not read from one: it receives what the az of the node it calls holds
 	string az = 2;
 	// absent: from the oldest history the source holds
@@ -113,7 +113,7 @@ message RelayItem {
 // (up), and delivered by a receiving cluster's hub to its members (both).
 message RelayBatch {
 	base.BaseApi base = 1;
-	// the az the rows were committed in. A light node sends none: its rows are taken as
+	// the az the rows were committed in. A lite node sends none: its rows are taken as
 	// written in the az of the node it delivers to, which sets this on its way to the
 	// members
 	string source_az = 2;
@@ -122,10 +122,10 @@ message RelayBatch {
 	RelayPos upto = 4;
 	// the source has more after `upto`
 	bool more = 5;
-	// the light node the rows were committed on, by its uuid: the positions are that
+	// the lite node the rows were committed on, by its uuid: the positions are that
 	// node's own, so the receivers keep a cursor for it and not for its az. Set by the
-	// node a light node delivers to - what a caller itself sends here is not read
-	string light = 6;
+	// node a lite node delivers to - what a caller itself sends here is not read
+	string lite = 6;
 }
 
 // Where the receiver - for a hub, the slowest member it heard from - now is.
@@ -135,9 +135,9 @@ message RelayAck {
 	string error = 3;
 }
 
-// What a light node reads of a table's config: the value of the table's A row in its config
+// What a lite node reads of a table's config: the value of the table's A row in its config
 // table, as a cluster node encodes it (base64 of the cluster's own table config, whose field
-// 20 this is) - the other fields are the cluster's and are left unread. A light node syncs a
+// 20 this is) - the other fields are the cluster's and are left unread. A lite node syncs a
 // table that has an A row, up unless `az_routing.no_up`, down unless `az_routing.no_down`.
 message TableLink {
 	AzRouting az_routing = 20;

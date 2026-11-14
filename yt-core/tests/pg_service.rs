@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use yt_core::core::{relay, relay::Outcome, store, store::ABOVE};
 use yt_core::pg::Pg;
-use yt_core::service::Light;
+use yt_core::service::Lite;
 use yt_core_proto::link::link_server::{Link, LinkServer};
 use yt_core_proto::link::{LinkGrant, LinkSignIn, RelayAck, RelayBatch, RelayFetch, RelayItem, RelayPos};
 
@@ -63,7 +63,7 @@ async fn the_extension_writes_through_the_service_and_rows_go_up() {
 	let socket = pg.socket_path().await.unwrap();
 	let (stop, stopped) = tokio::sync::oneshot::channel();
 	let (ended_send, _ended) = tokio::sync::mpsc::unbounded_channel();
-	Light::new(node.clone(), pg.clone(), log).run(&socket, stopped, ended_send).await.unwrap();
+	Lite::new(node.clone(), pg.clone(), log).run(&socket, stopped, ended_send).await.unwrap();
 
 	let c = tmp.client("appdb").await;
 	// yt_setup: the trigger and the A row - the table syncs both ways
@@ -101,7 +101,7 @@ async fn the_extension_writes_through_the_service_and_rows_go_up() {
 
 /// a transaction that reached no node - it changed nothing, or only a table with no trigger,
 /// in a session that never connected to the service - completes as nothing: yt_complete is 0,
-/// as on a light node, for a commit and a rollback (2026-11-14: a cluster node raised
+/// as on a lite node, for a commit and a rollback (2026-11-14: a cluster node raised
 /// "yt_complete: not connected" for it, the first transaction of a session only)
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_transaction_that_reached_no_node_completes_as_nothing() {

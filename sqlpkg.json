@@ -6,7 +6,7 @@
     "repository": "https://github.com/DBinvent/yt-cluster-light",
     "authors": ["DBinvent"],
     "license": "MIT",
-    "description": "A SQLite database as a light node of a YT cluster: its tables synced both ways.",
+    "description": "A SQLite database as a lite node of a YT cluster: its tables synced both ways.",
     "keywords": ["sync", "replication", "bi-directional", "postgres", "cluster", "offline", "yt"],
     "symbols": ["yt_setup", "yt_sync", "yt_unsync", "yt_link", "yt_unlink", "yt_info"],
     "assets": {

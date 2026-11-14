@@ -24,7 +24,7 @@ use crate::core::store::Node;
 use crate::pg::{full_version, one_database, Pg};
 
 #[derive(Clone)]
-pub struct Light {
+pub struct Lite {
 	pub node: Arc<Node>,
 	pub pg: Arc<Pg>,
 	/// the rows of the transactions still open, by transaction id, and since when
@@ -33,9 +33,9 @@ pub struct Light {
 	pub log: Logger,
 }
 
-impl Light {
+impl Lite {
 	pub fn new(node: Arc<Node>, pg: Arc<Pg>, log: Logger) -> Self {
-		Light { node, pg, pending: Arc::new(Mutex::new(HashMap::new())), started: Instant::now(), log }
+		Lite { node, pg, pending: Arc::new(Mutex::new(HashMap::new())), started: Instant::now(), log }
 	}
 
 	/// Serve the socket `path` until `stop` fires; an error that ends the server is sent
@@ -47,7 +47,7 @@ impl Light {
 		{
 			use std::os::unix::fs::PermissionsExt;
 			if let Err(e) = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o777)) {
-				warn!(self.log, "{}", t!("light-chmod", path = path, error = e));
+				warn!(self.log, "{}", t!("lite-chmod", path = path, error = e));
 			}
 		}
 		let incoming = tokio_stream::wrappers::UnixListenerStream::new(uds);
@@ -57,7 +57,7 @@ impl Light {
 				.add_service(LocalGrpcServer::new(self))
 				.serve_with_incoming_shutdown(incoming, async { let _ = stop.await; })
 				.await {
-				error!(log, "{}", t!("light-socket-stopped", error = e));
+				error!(log, "{}", t!("lite-socket-stopped", error = e));
 				let _ = ended.send(e.to_string());
 			}
 		});
@@ -98,14 +98,14 @@ impl Light {
 }
 
 #[tonic::async_trait]
-impl LocalGrpc for Light {
+impl LocalGrpc for Lite {
 	async fn modify(&self, request: Request<DbInputEntity>) -> Result<Response<ModifyReply>, Status> {
 		let mut row = request.into_inner();
-		let Some(t) = row.table.as_mut() else { return Err(Status::invalid_argument(t!("light-row-no-table"))) };
+		let Some(t) = row.table.as_mut() else { return Err(Status::invalid_argument(t!("lite-row-no-table"))) };
 		// one database: a write from any other one is refused, never skipped
 		if t.db != self.pg.db {
 			let why = one_database(&self.pg.db);
-			warn!(self.log, "{}", t!("light-modify-refused", why = why, table = format!("{}.{}.{}", t.db, t.schema, t.table)));
+			warn!(self.log, "{}", t!("lite-modify-refused", why = why, table = format!("{}.{}.{}", t.db, t.schema, t.table)));
 			return Err(Status::failed_precondition(why));
 		}
 		// a table that does not sync up - no A row, or no_up in it - keeps its write here: not
@@ -150,12 +150,12 @@ impl LocalGrpc for Light {
 				})
 			}
 			Ok(ClusterCommitType::Rollback) => self.pg.rollback(c.txid).await,
-			Err(_) => Err(t!("light-unknown-completion", value = c.commit)),
+			Err(_) => Err(t!("lite-unknown-completion", value = c.commit)),
 		};
 		match done {
 			Ok(()) => Ok(Response::new(CompleteReply { result: 0 })),
 			Err(e) => {
-				let e = t!("light-complete-failed", tx = c.txid, error = e);
+				let e = t!("lite-complete-failed", tx = c.txid, error = e);
 				error!(self.log, "{}", e);
 				Err(Status::unavailable(e))
 			}
@@ -185,12 +185,12 @@ impl LocalGrpc for Light {
 					("database", self.pg.db.clone()),
 					("cluster_database", self.pg.cluster_db.clone()),
 					("hosts_above", self.node.hosts.join(",")),
-					// a light node has no az: this is the az of the node above it signed in
+					// a lite node has no az: this is the az of the node above it signed in
 					// through, as that node said - shown, never set here
 					("az", match self.node.told_az().await {
-						Some(a) if a.is_empty() => t!("light-info-az-none"),
-						Some(a) => t!("light-info-az-shared", az = a),
-						None => t!("light-info-az-untold"),
+						Some(a) if a.is_empty() => t!("lite-info-az-none"),
+						Some(a) => t!("lite-info-az-shared", az = a),
+						None => t!("lite-info-az-untold"),
 					}),
 					("outbox", self.node.waiting().await.to_string()),
 					("open_transactions", self.pending.lock().await.len().to_string()),
@@ -205,12 +205,12 @@ impl LocalGrpc for Light {
 					rows.push(("ca_fingerprint", t.fingerprint().to_string()));
 					rows.push(("link_tls", t.status()));
 				}
-				rows.push(("light", t!("light-info-light")));
+				rows.push(("lite", t!("lite-info-lite")));
 				Ok(self.rows('I', &rows))
 			}
 			_ => {
 				let what = raw.split(':').next().unwrap_or(raw);
-				info!(self.log, "{}", t!("light-info-refused", what = raw));
+				info!(self.log, "{}", t!("lite-info-refused", what = raw));
 				Err(Status::failed_precondition(full_version(&format!("yt_info('{}')", what))))
 			}
 		}

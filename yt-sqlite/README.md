@@ -1,4 +1,4 @@
-# yt-sqlite: a SQLite database as a light node of a YT cluster
+# yt-sqlite: a SQLite database as a lite node of a YT cluster
 
 A SQLite loadable extension, `yt`. Load it into SQLite, set up the tables to sync, and link
 the database file to a YT cluster. The rows written to those tables go up to the cluster.

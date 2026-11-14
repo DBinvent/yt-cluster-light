@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
 //! yt: YT Cluster lite as a SQLite loadable extension (README.md). A SQLite database file is
-//! a light node of a YT cluster: the tables set up in it go up to the cluster, and what the
+//! a lite node of a YT cluster: the tables set up in it go up to the cluster, and what the
 //! cluster holds of them comes down - both ways, as yt-lite does for PostgreSQL and the
 //! `turso` feature for an application on Turso. One store for all three SQLite-dialect
 //! engines: yt_core::lite.

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! The shared relay loops (core/relay.rs) on a light node, against a node above
+//! The shared relay loops (core/relay.rs) on a lite node, against a node above
 //! served in this process over the public Link service: down applies what crossed,
-//! once; up delivers the outbox from where the node above is. The light node names no
+//! once; up delivers the outbox from where the node above is. The lite node names no
 //! az in any of it: the node above knows it by its uuid, and says which az it shares.
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
@@ -11,15 +11,15 @@ use yt_core_proto::db::DbInputEntity;
 use yt_core_proto::link::link_server::{Link, LinkServer};
 use yt_core_proto::link::{LinkGrant, LinkSignIn, RelayAck, RelayBatch, RelayFetch, RelayItem, RelayPos};
 
-/// The node above, in az `top`: what its az holds for the light node, what it took
-/// from it, and every az a light node's call named - none, when the light node is right.
+/// The node above, in az `top`: what its az holds for the lite node, what it took
+/// from it, and every az a lite node's call named - none, when the lite node is right.
 #[derive(Default, Clone)]
 struct Above {
 	down: Arc<Mutex<Vec<RelayItem>>>,
 	took: Arc<Mutex<BTreeMap<(u64, u32), RelayItem>>>,
 	at: Arc<Mutex<Option<(u64, u32)>>>,
 	fetches: Arc<Mutex<u32>>,
-	/// what the light node's calls carried where a cluster's carry an az
+	/// what the lite node's calls carried where a cluster's carry an az
 	named: Arc<Mutex<Vec<String>>>,
 }
 
@@ -33,7 +33,7 @@ fn row(id: i64) -> DbInputEntity {
 impl Link for Above {
 	async fn signin(&self, r: tonic::Request<LinkSignIn>) -> Result<tonic::Response<LinkGrant>, tonic::Status> {
 		let r = r.into_inner();
-		// a light node presents no az: the node above knows it by its uuid (7 here), and
+		// a lite node presents no az: the node above knows it by its uuid (7 here), and
 		// tells it the az it is taken to be in - its own
 		if let Some(a) = r.target_az {
 			self.named.lock().unwrap().push(format!("signin target_az {}", a));
@@ -58,8 +58,8 @@ impl Link for Above {
 	}
 	async fn deliver(&self, r: tonic::Request<RelayBatch>) -> Result<tonic::Response<RelayAck>, tonic::Status> {
 		let b = r.into_inner();
-		if !b.source_az.is_empty() || !b.light.is_empty() {
-			self.named.lock().unwrap().push(format!("deliver source_az [{}] light [{}]", b.source_az, b.light));
+		if !b.source_az.is_empty() || !b.lite.is_empty() {
+			self.named.lock().unwrap().push(format!("deliver source_az [{}] lite [{}]", b.source_az, b.lite));
 		}
 		if let Some(u) = b.upto {
 			for i in b.items { self.took.lock().unwrap().insert((i.term, i.subterm), i); }
@@ -79,7 +79,7 @@ async fn serve(above: Above) -> String {
 }
 
 #[tokio::test]
-async fn a_light_node_relays_down_once_and_up_from_where_the_node_above_is() {
+async fn a_lite_node_relays_down_once_and_up_from_where_the_node_above_is() {
 	let above = Above::default();
 	*above.down.lock().unwrap() = vec![
 		RelayItem { term: 1, subterm: 1, data: vec![row(1)] },
@@ -117,10 +117,10 @@ async fn a_light_node_relays_down_once_and_up_from_where_the_node_above_is() {
 	assert!(g.granted);
 }
 
-/// A light node has no az: its sign-in, its fetch and its batches name none, and the az
+/// A lite node has no az: its sign-in, its fetch and its batches name none, and the az
 /// it is in is what the node above says - shown, with nothing here to set it.
 #[tokio::test]
-async fn a_light_node_names_no_az_and_is_told_the_one_it_shares() {
+async fn a_lite_node_names_no_az_and_is_told_the_one_it_shares() {
 	let above = Above::default();
 	*above.down.lock().unwrap() = vec![RelayItem { term: 1, subterm: 1, data: vec![row(1)] }];
 	let host = serve(above.clone()).await;
@@ -134,7 +134,7 @@ async fn a_light_node_names_no_az_and_is_told_the_one_it_shares() {
 	assert_eq!(relay::down(&node, ABOVE).await, Outcome::Moved);
 	node.committed((1, 1), vec![row(10)]).await;
 	assert_eq!(relay::up(&node, ABOVE).await, Outcome::Moved);
-	assert_eq!(*above.named.lock().unwrap(), Vec::<String>::new(), "no call of a light node names an az");
+	assert_eq!(*above.named.lock().unwrap(), Vec::<String>::new(), "no call of a lite node names an az");
 
 	// the cursor is one, whatever az a batch says its rows were committed in
 	let other = RelayBatch { source_az: "elsewhere".into(), items: vec![RelayItem { term: 1, subterm: 1, data: vec![row(1)] }],
@@ -166,7 +166,7 @@ async fn a_node_above_that_does_not_answer_is_said_and_the_next_host_tried() {
 
 /// [compat] a node of a YT Cluster before 1.21 serves no Link service: the sign-in says so
 /// (YT-E077, the host named, where tonic's answer has no text), and the next host of
-/// `upper` signs the light node in - as yt-lite's loop turns to it after a failed sign-in
+/// `upper` signs the lite node in - as yt-lite's loop turns to it after a failed sign-in
 #[tokio::test]
 async fn a_node_with_no_link_service_is_said_and_the_next_host_signs_in() {
 	let l = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

@@ -2,7 +2,7 @@ name: trivy
 
 # Trivy: known vulnerabilities, secrets and misconfigurations of the repository - the
 # crates of Cargo.lock, committed secrets, the extension's build Dockerfiles (ytpgc/). YT
-# light ships no image of its own, so there is no image scan here.
+# lite ships no image of its own, so there is no image scan here.
 # The findings go to Code scanning (the Security tab), then the run fails on a HIGH or
 # CRITICAL one that has a fix. A finding to accept goes in .trivyignore, with why.
 # A CycloneDX SBOM of what was scanned is kept as the run's artifact (sbom-fs).

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! A light node's store in a database of the SQLite dialect, the application's own: Turso's
+//! A lite node's store in a database of the SQLite dialect, the application's own: Turso's
 //! (crate::turso, feature `turso`) or SQLite's (the yt-sqlite loadable extension). One store,
 //! [`Lite`], over a connection of either: [`Conn`] runs its statements.
 //!
@@ -47,22 +47,22 @@ use crate::core::pos::{to_pos, Pos};
 
 /// The words of a database with no file, for yt-sqlite: it cannot link.
 pub fn no_file(db: &str) -> String {
-	t!("light-sqlite-no-file", db = db)
+	t!("lite-sqlite-no-file", db = db)
 }
 
 /// The words of a link with no cluster above set, for yt-sqlite.
 pub fn no_upper() -> String {
-	t!("light-sqlite-no-upper")
+	t!("lite-sqlite-no-upper")
 }
 
 /// The words of `yt_link` called inside a transaction, for yt-sqlite.
 pub fn in_transaction() -> String {
-	t!("light-sqlite-in-tx")
+	t!("lite-sqlite-in-tx")
 }
 
 /// The words of an `upper_root` that is no CA fingerprint, for yt-sqlite.
 pub fn bad_root(value: &str) -> String {
-	t!("light-sqlite-bad-root", value = value)
+	t!("lite-sqlite-bad-root", value = value)
 }
 
 /// A value of a row, as both engines hold one.
@@ -176,7 +176,7 @@ pub fn id_of(p: Pos) -> u64 {
 }
 
 pub(crate) fn e<E: std::fmt::Display>(what: &'static str) -> impl Fn(E) -> String {
-	move |x| t!("light-db", what = what, error = x)
+	move |x| t!("lite-db", what = what, error = x)
 }
 
 /// The store on a connection `C` of the SQLite dialect: Turso's (crate::turso), SQLite's
@@ -288,7 +288,7 @@ impl<C: Conn> Lite<C> {
 	pub async fn sync(&self, table: &str, value: &str) -> Result<(), String> {
 		// a value this node cannot read would sync both ways, unsaid (review of 2026-11-14)
 		if !crate::sync::readable(value) {
-			return Err(t!("light-sync-value", value = value));
+			return Err(t!("lite-sync-value", value = value));
 		}
 		let table = &Self::local(table);
 		let c = self.conn.lock().await;
@@ -319,9 +319,9 @@ impl<C: Conn> Lite<C> {
 		let table = &Self::local(table);
 		let c = self.conn.lock().await;
 		self.tables.lock().await.remove(table);
-		let cols = self.columns(&c, table).await?.ok_or_else(|| t!("light-turso-no-table", table = table))?;
+		let cols = self.columns(&c, table).await?.ok_or_else(|| t!("lite-turso-no-table", table = table))?;
 		if !cols.iter().any(|c| c.pk) {
-			return Err(t!("light-turso-no-key", table = table));
+			return Err(t!("lite-turso-no-key", table = table));
 		}
 		// a BLOB as PostgreSQL writes a bytea, an infinite REAL as its word: json_object refuses
 		// a BLOB and writes infinity as 9e999, which no JSON reader takes; any other REAL in 17
@@ -390,7 +390,7 @@ impl<C: Conn> Lite<C> {
 		let syncs = self.syncs(&c).await?;
 		for item in batch.items.iter().filter(|i| Some((i.term, i.subterm)) > at && (i.term, i.subterm) <= upto) {
 			for row in &item.data {
-				let t = row.table.as_ref().ok_or_else(|| t!("light-row-no-table"))?;
+				let t = row.table.as_ref().ok_or_else(|| t!("lite-row-no-table"))?;
 				if t.db != self.cluster_db {
 					not_held += 1;
 					continue;
@@ -413,7 +413,7 @@ impl<C: Conn> Lite<C> {
 			let top = top.first().map(|r| int(&r[0])).unwrap_or(0);
 			let mut missed = 0;
 			for (sql, params, must_match) in plans {
-				let n = c.exec(&sql, params).await.map_err(|x| t!("light-statement", sql = sql, error = x))?;
+				let n = c.exec(&sql, params).await.map_err(|x| t!("lite-statement", sql = sql, error = x))?;
 				if must_match && n == 0 {
 					missed += 1;
 				}
@@ -478,21 +478,21 @@ pub(crate) fn value(v: &VarType, decl: &str) -> Result<Val, String> {
 		// a number that does not read as one is refused, as PostgreSQL refuses it (review of
 		// 2026-11-13): SQLite would keep the text in a numeric column
 		Some(V::Universal(s)) => match kind(decl).0 {
-			Kind::Int => Val::Integer(s.trim().parse().map_err(|_| t!("light-turso-value", value = s, decl = decl))?),
+			Kind::Int => Val::Integer(s.trim().parse().map_err(|_| t!("lite-turso-value", value = s, decl = decl))?),
 			Kind::Flt => match s.trim() {
 				"NaN" | "Infinity" | "-Infinity" => Val::Text(s.trim().to_string()),
-				x => Val::Real(x.parse().map_err(|_| t!("light-turso-value", value = s, decl = decl))?),
+				x => Val::Real(x.parse().map_err(|_| t!("lite-turso-value", value = s, decl = decl))?),
 			},
 			Kind::Bool => Val::Integer(matches!(s.trim(), "t" | "true" | "1" | "yes" | "on") as i64),
 			Kind::Bytes => match s.strip_prefix("\\x") {
 				Some(h) if h.len() % 2 == 0 => Val::Blob((0..h.len()).step_by(2)
 					.map(|i| u8::from_str_radix(&h[i..i + 2], 16)).collect::<Result<Vec<u8>, _>>()
-					.map_err(|_| t!("light-turso-value", value = s, decl = decl))?),
-				_ => return Err(t!("light-turso-value", value = s, decl = decl)),
+					.map_err(|_| t!("lite-turso-value", value = s, decl = decl))?),
+				_ => return Err(t!("lite-turso-value", value = s, decl = decl)),
 			},
 			Kind::Text => Val::Text(s.clone()),
 		},
-		Some(V::Diff(_)) => return Err(t!("light-full-version", what = "a document merged path by path")),
+		Some(V::Diff(_)) => return Err(t!("lite-full-version", what = "a document merged path by path")),
 	})
 }
 
@@ -500,11 +500,11 @@ pub(crate) fn value(v: &VarType, decl: &str) -> Result<Val, String> {
 /// whether it must match a row (an update or a delete). A row is found by its key; an
 /// insert of a key already here is a batch sent again: nothing.
 pub fn statement(row: &DbInputEntity, local: &str, cols: &[Col]) -> Result<(String, Vec<Val>, bool), String> {
-	let t = row.table.as_ref().ok_or_else(|| t!("light-row-no-table"))?;
+	let t = row.table.as_ref().ok_or_else(|| t!("lite-row-no-table"))?;
 	let name = |attnum: &u32| t.columns.iter().find(|c| c.attnum == *attnum).map(|c| c.name.clone())
-		.ok_or_else(|| t!("light-no-attnum", table = local, attnum = attnum));
+		.ok_or_else(|| t!("lite-no-attnum", table = local, attnum = attnum));
 	let decl = |n: &str| cols.iter().find(|c| c.name == n).map(|c| c.decl.clone())
-		.ok_or_else(|| t!("light-no-column", table = local, column = n));
+		.ok_or_else(|| t!("lite-no-column", table = local, column = n));
 	let sorted = |m: &HashMap<u32, VarType>| { let mut k: Vec<u32> = m.keys().copied().collect(); k.sort(); k };
 	let pk: Vec<&Col> = cols.iter().filter(|c| c.pk).collect();
 	let tq = ident(local);
@@ -516,7 +516,7 @@ pub fn statement(row: &DbInputEntity, local: &str, cols: &[Col]) -> Result<(Stri
 		// the equal rows by its rowid - as PostgreSQL's side does by ctid (review of 2026-11-13)
 		if pk.is_empty() {
 			if row.old_data.is_empty() {
-				return Err(t!("light-keyless-no-old", table = local));
+				return Err(t!("lite-keyless-no-old", table = local));
 			}
 			for k in sorted(&row.old_data) {
 				let n = name(&k)?;
@@ -528,7 +528,7 @@ pub fn statement(row: &DbInputEntity, local: &str, cols: &[Col]) -> Result<(Stri
 		for c in &pk {
 			let v = t.columns.iter().find(|r| r.name == c.name)
 				.and_then(|r| row.old_data.get(&r.attnum).or_else(|| row.new_data.get(&r.attnum)))
-				.ok_or_else(|| t!("light-no-key-value", table = local, column = c.name))?;
+				.ok_or_else(|| t!("lite-no-key-value", table = local, column = c.name))?;
 			params.push(value(v, &c.decl)?);
 			wh.push(format!("{} = ?", ident(&c.name)));
 		}

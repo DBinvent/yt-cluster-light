@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! A light node's store: the database its rows live in - what it committed and has not seen
+//! A lite node's store: the database its rows live in - what it committed and has not seen
 //! passed by the cluster above, and what came down with the cursor of how far. yt-lite's is
 //! the PostgreSQL database it serves (crate::pg); an application's is its own (crate::turso,
 //! feature `turso`). A node with none keeps both in memory (core/store.rs).

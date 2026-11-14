@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! The light node inside an application on Turso (feature `turso`), its link's turns
+//! The lite node inside an application on Turso (feature `turso`), its link's turns
 //! (`leaf::run`) against a node above served in this process: it signs in, what the node
 //! above holds comes down into the application's tables, and what the application writes
 //! goes up as the PostgreSQL extension would send it - typed, with each column's

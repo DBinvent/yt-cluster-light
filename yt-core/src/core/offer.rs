@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! The light node's version of a replaceable file: what its sign-in offers, and
+//! The lite node's version of a replaceable file: what its sign-in offers, and
 //! what it takes from the answer. (ytserv has its own `offer.rs`: the secret store,
 //! rotation, continuity, the meter and splits.)
 //!
 //! yt-lite offers its one CA (crate::tls): the certificate as held, its key as the one
 //! live, what it holds of the upper's roots, and the key's proof over the challenge the
 //! last answer handed (`signin::proof_message`); from the answer it keeps the next
-//! challenge, and takes the countersigned CA and the roots. A light node with no CA - in
+//! challenge, and takes the countersigned CA and the roots. A lite node with no CA - in
 //! an application, for now - offers nothing and keeps only the challenge.
 use yt_core_proto::link::{LinkGrant, LinkSignIn};
 
@@ -16,7 +16,7 @@ use super::store::Node;
 pub async fn offer(node: &Node, _mine: &str, _upper: &str, req: &mut LinkSignIn) {
 	#[cfg(feature = "tls")]
 	if let Some(tls) = &node.tls {
-		// a light node has no az: its own uuid binds the proof - what the far end knows it
+		// a lite node has no az: its own uuid binds the proof - what the far end knows it
 		// by, the peer of the sign-in
 		let id = yt_core_proto::base::PeerUuid::from(node.uuid).to_string();
 		let challenge = node.challenge.lock().await.clone();

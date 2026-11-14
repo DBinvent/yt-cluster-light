@@ -2,7 +2,7 @@
 name = "yt-sqlite"
 version = "1.21.0"
 edition = "2024"
-description = "YT Cluster lite as a SQLite loadable extension: a SQLite database as a light node of a YT cluster, its tables synced both ways"
+description = "YT Cluster lite as a SQLite loadable extension: a SQLite database as a lite node of a YT cluster, its tables synced both ways"
 authors = ["Vladimir Krinitsyn <v.krinitsyn@gmail.com>", "DBinvent <support@dbinvent.com>"]
 license = "MIT"
 repository = "https://github.com/DBinvent/yt-cluster-light.git"

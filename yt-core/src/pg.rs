@@ -12,7 +12,7 @@
 //! - **Down.** A batch is applied in one transaction with its cursor, under
 //!   `yt.node = 'local'`, so the extension's triggers send nothing of it back up. A
 //!   value is cast to the local column's type, read from this database's catalog.
-//! - **What it holds.** A light node has no az: the node above sends it what its own az
+//! - **What it holds.** A lite node has no az: the node above sends it what its own az
 //!   holds, whatever database and table. This node takes the rows of the tables its one
 //!   database has; a row of another database, or of a table that is not here, is not
 //!   this node's - skipped and counted (yt_info `rows_not_held_here`), never an error. A
@@ -41,12 +41,12 @@ use crate::core::pos::{to_pos, Pos};
 /// What a write outside the one database is answered with (SQLSTATE 0A000, as the
 /// extension maps a refusal's leading code).
 pub fn one_database(db: &str) -> String {
-	t!("light-one-database", db = db)
+	t!("lite-one-database", db = db)
 }
 
 /// The same for a feature of the full version.
 pub fn full_version(what: &str) -> String {
-	t!("light-full-version", what = what)
+	t!("lite-full-version", what = what)
 }
 
 pub struct Pg {
@@ -56,7 +56,7 @@ pub struct Pg {
 	capture: Mutex<Client>,
 	/// the applies of what comes down
 	apply: Mutex<Client>,
-	/// the schema of the config table, where the light tables are kept
+	/// the schema of the config table, where the lite tables are kept
 	pub schema: String,
 	/// the config table's name in it
 	pub config_table: String,
@@ -93,7 +93,7 @@ const CURSOR: &str = "cursor";
 /// A database error, said with what it was about - `what` a name of the database's own
 /// (a table, a function, a setting), the same in every language.
 fn e<E: std::fmt::Display>(what: &'static str) -> impl Fn(E) -> String {
-	move |x| t!("light-db", what = what, error = x)
+	move |x| t!("lite-db", what = what, error = x)
 }
 
 /// A name for SQL, quoted.
@@ -107,9 +107,9 @@ pub fn next_pos(p: Pos) -> Pos {
 }
 
 async fn session(url: &str) -> Result<Client, String> {
-	let mut cfg = tokio_postgres::Config::from_str(url).map_err(|x| t!("light-db-url", error = x))?;
+	let mut cfg = tokio_postgres::Config::from_str(url).map_err(|x| t!("lite-db-url", error = x))?;
 	cfg.connect_timeout(Duration::from_secs(10));
-	let (client, conn) = cfg.connect(NoTls).await.map_err(|x| t!("light-db-connect", error = x))?;
+	let (client, conn) = cfg.connect(NoTls).await.map_err(|x| t!("lite-db-connect", error = x))?;
 	tokio::spawn(async move {
 		let _ = conn.await;
 	});
@@ -126,7 +126,7 @@ async fn status(c: &Client, xid: u64) -> Result<Option<String>, String> {
 }
 
 impl Pg {
-	/// Two sessions to the database `url` names, and the light tables beside its config
+	/// Two sessions to the database `url` names, and the lite tables beside its config
 	/// table: `config` (`schema.table`) when it is there, else the extension's
 	/// `yt_config`. `cluster_db`: the database's name in the cluster above; its own by
 	/// default.
@@ -218,7 +218,7 @@ impl Pg {
 		let have = c.query_opt(&format!("SELECT value FROM {t} WHERE module = 'L' AND name = 'uuid'"), &[]).await;
 		if let Ok(Some(r)) = have {
 			let v: String = r.get(0);
-			return yt_core_proto::uuid::Uuid::parse_str(v.trim()).map(|u| u.as_u128()).map_err(|x| t!("light-uuid-row", error = x));
+			return yt_core_proto::uuid::Uuid::parse_str(v.trim()).map(|u| u.as_u128()).map_err(|x| t!("lite-uuid-row", error = x));
 		}
 		let u = yt_core_proto::uuid::Uuid::new_v4();
 		c.execute(&format!("INSERT INTO {t} (name, module, value) VALUES ('uuid', 'L', $1) ON CONFLICT DO NOTHING"), &[&u.to_string()])
@@ -382,7 +382,7 @@ impl Pg {
 		Ok(())
 	}
 
-	/// How far this node applied what came down: one cursor - a light node has one
+	/// How far this node applied what came down: one cursor - a lite node has one
 	/// cluster above, named by no az.
 	pub async fn cursor(&self) -> Result<Option<Pos>, String> {
 		self.position(CURSOR).await
@@ -472,7 +472,7 @@ impl Pg {
 		let syncs = self.syncs_now().await?;
 		for item in batch.items.iter().filter(|i| Some((i.term, i.subterm)) > at && (i.term, i.subterm) <= upto) {
 			for row in &item.data {
-				let t = row.table.as_ref().ok_or_else(|| t!("light-row-no-table"))?;
+				let t = row.table.as_ref().ok_or_else(|| t!("lite-row-no-table"))?;
 				// what the az of the node above holds, in every database of its cluster: this
 				// node's are the tables its one database has
 				if t.db != self.cluster_db {
@@ -495,7 +495,7 @@ impl Pg {
 		let mut missed = 0;
 		for (sql, params, must_match) in &plans {
 			let refs: Vec<&(dyn ToSql + Sync)> = params.iter().map(|p| p as &(dyn ToSql + Sync)).collect();
-			let n = tx.execute(sql.as_str(), &refs).await.map_err(|x| t!("light-statement", sql = sql, error = x))?;
+			let n = tx.execute(sql.as_str(), &refs).await.map_err(|x| t!("lite-statement", sql = sql, error = x))?;
 			if *must_match && n == 0 {
 				missed += 1;
 			}
@@ -553,11 +553,11 @@ fn text(v: &yt_core_proto::base::VarType) -> Result<Option<String>, String> {
 /// image, one row of the equal ones (`ctid`), as the extension sends the whole old row
 /// for such a table. An insert of a key already here is a batch sent again: nothing.
 pub fn statement(row: &DbInputEntity, types: &HashMap<String, String>) -> Result<(String, Vec<Option<String>>, bool), String> {
-	let t = row.table.as_ref().ok_or_else(|| t!("light-row-no-table"))?;
+	let t = row.table.as_ref().ok_or_else(|| t!("lite-row-no-table"))?;
 	let table = format!("{}.{}", ident(&t.schema), ident(&t.table));
 	let name = |attnum: &u32| t.columns.iter().find(|c| c.attnum == *attnum).map(|c| c.name.clone())
-		.ok_or_else(|| t!("light-no-attnum", table = table, attnum = attnum));
-	let ty = |col: &str| types.get(col).cloned().ok_or_else(|| t!("light-no-column", table = table, column = col));
+		.ok_or_else(|| t!("lite-no-attnum", table = table, attnum = attnum));
+	let ty = |col: &str| types.get(col).cloned().ok_or_else(|| t!("lite-no-column", table = table, column = col));
 	let mut params: Vec<Option<String>> = Vec::new();
 	let mut arg = |v: Option<String>, ty: String| { params.push(v); format!("${}::text::{}", params.len(), ty) };
 	let sorted = |m: &HashMap<u32, yt_core_proto::base::VarType>| { let mut k: Vec<u32> = m.keys().copied().collect(); k.sort(); k };
@@ -596,7 +596,7 @@ pub fn statement(row: &DbInputEntity, types: &HashMap<String, String>) -> Result
 			let mut wh = Vec::new();
 			if pk.is_empty() {
 				if row.old_data.is_empty() {
-					return Err(t!("light-keyless-no-old", table = table));
+					return Err(t!("lite-keyless-no-old", table = table));
 				}
 				for k in sorted(&row.old_data) {
 					let c = name(&k)?;
@@ -605,7 +605,7 @@ pub fn statement(row: &DbInputEntity, types: &HashMap<String, String>) -> Result
 			} else {
 				for c in &pk {
 					let v = row.old_data.get(&c.attnum).or_else(|| row.new_data.get(&c.attnum))
-						.ok_or_else(|| t!("light-no-key-value", table = table, column = c.name))?;
+						.ok_or_else(|| t!("lite-no-key-value", table = table, column = c.name))?;
 					wh.push(format!("{} = {}", ident(&c.name), arg(text(v)?, ty(&c.name)?)));
 				}
 			}

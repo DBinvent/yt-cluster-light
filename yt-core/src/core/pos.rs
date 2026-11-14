@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
 //! A position in a source cluster's history.
 //!
-//! Shared: the light node and ytserv compile this same file (the link's rules: no
+//! Shared: the lite node and ytserv compile this same file (the link's rules: no
 //! `crate::` paths, no logging, only yt-core-proto, std, tokio and the replaceable
 //! files beside it).
 use yt_core_proto::Term;

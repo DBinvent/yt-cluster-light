@@ -17,7 +17,7 @@ pub fn not_ready_in(locale: &str, err: &str) -> String {
 }
 
 /// A code's digits when `code` is one of YT lite's: `YT-E` and three digits.
-pub fn light_code(code: &str) -> Option<u32> {
+pub fn lite_code(code: &str) -> Option<u32> {
 	let n = code.strip_prefix("YT-E")?;
 	(n.len() == 3 && n.bytes().all(|b| b.is_ascii_digit())).then(|| n.parse().ok()).flatten()
 }
@@ -91,7 +91,7 @@ mod tests {
 		}
 		for (k, m) in &en {
 			let c = code(m).unwrap_or_else(|| panic!("{}: no code", k));
-			let n = light_code(&c).unwrap_or_else(|| panic!("{}: {} is not three digits - YT Cluster's have four", k, c));
+			let n = lite_code(&c).unwrap_or_else(|| panic!("{}: {} is not three digits - YT Cluster's have four", k, c));
 			assert!((1..30).contains(&n), "{}: {} is not this crate's", k, c);
 			assert!(codes.insert(c.clone(), k.clone()).is_none(), "{} for {} and {}", c, codes[&c], k);
 		}
@@ -99,11 +99,11 @@ mod tests {
 	}
 
 	#[test]
-	fn a_light_code_has_three_digits() {
-		assert_eq!(light_code("YT-E001"), Some(1));
-		assert_eq!(light_code("YT-E930"), Some(930));
-		assert_eq!(light_code("YT-E1001"), None, "four digits: YT Cluster's");
-		assert_eq!(light_code("YT-E01"), None);
-		assert_eq!(light_code("SGE-E001"), None);
+	fn a_lite_code_has_three_digits() {
+		assert_eq!(lite_code("YT-E001"), Some(1));
+		assert_eq!(lite_code("YT-E930"), Some(930));
+		assert_eq!(lite_code("YT-E1001"), None, "four digits: YT Cluster's");
+		assert_eq!(lite_code("YT-E01"), None);
+		assert_eq!(lite_code("SGE-E001"), None);
 	}
 }

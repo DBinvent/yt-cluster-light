@@ -3,7 +3,7 @@ name = "yt-turso-load"
 version = "1.21.0"
 edition.workspace = true
 license.workspace = true
-description = "YT Cluster lite: a load like pgbench on Turso, with the light node inside - a leaf of a YT Cluster in an application"
+description = "YT Cluster lite: a load like pgbench on Turso, with the lite node inside - a leaf of a YT Cluster in an application"
 publish = false
 
 [dependencies]

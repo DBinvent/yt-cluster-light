@@ -13,13 +13,13 @@ macro_rules! t {
 pub mod i18n;
 
 pub mod core;
-// a light node's store: the database its rows live in (PostgreSQL for yt-lite, Turso in an
+// a lite node's store: the database its rows live in (PostgreSQL for yt-lite, Turso in an
 // application), or none - in memory
 pub mod db;
 // which of its tables sync, and which way: their A rows, as on a cluster node
 #[cfg(any(feature = "service", feature = "lite"))]
 pub mod sync;
-// the link's turns for a light node: sign in, down, up (yt-lite's own loop is src/main.rs)
+// the link's turns for a lite node: sign in, down, up (yt-lite's own loop is src/main.rs)
 pub mod leaf;
 
 // yt-lite, the service beside one PostgreSQL instance (src/main.rs)
@@ -30,9 +30,9 @@ pub mod service;
 // the node's CA and its TLS to the cluster above
 #[cfg(feature = "tls")]
 pub mod tls;
-// a light node's store in a database of the SQLite dialect: Turso's, SQLite's
+// a lite node's store in a database of the SQLite dialect: Turso's, SQLite's
 #[cfg(feature = "lite")]
 pub mod lite;
-// the light node inside an application, on Turso
+// the lite node inside an application, on Turso
 #[cfg(feature = "turso")]
 pub mod turso;

@@ -108,7 +108,7 @@ async fn yt_lite_applies_what_comes_down_and_sends_its_outbox_up() {
 	assert_eq!(rows, vec![(2, "bb".to_string())]);
 	assert_eq!(store::cursor(&node, ABOVE).await, Some((7, 2)));
 	assert_eq!(relay::down(&node, ABOVE).await, Outcome::Idle);
-	// a light node has no az: the node above sends what its own az holds, in every database
+	// a lite node has no az: the node above sends what its own az holds, in every database
 	// and table. A row of another database, or of a table this database does not have, is
 	// not this node's: left out and counted, the rows beside it applied, the cursor moved
 	let mut elsewhere = row(&db, DbAction::Insert, 9, Some("x"));

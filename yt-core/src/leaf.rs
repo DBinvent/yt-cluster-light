@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! The link's turns for a light node inside an application: once a second it signs in -
+//! The link's turns for a lite node inside an application: once a second it signs in -
 //! when it is not let in, every minute, and after a change of host - then takes what came
 //! down and sends what goes up. yt-lite runs the same turns in its own loop (src/main.rs),
 //! with the PostgreSQL transactions it settles besides.
@@ -17,7 +17,7 @@ use crate::core::relay::{self, Outcome};
 use crate::core::store::{Node, ABOVE};
 use crate::core::{calls, signin};
 
-/// Where a light node's link is.
+/// Where a lite node's link is.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Status {
 	/// the cluster above let it in
@@ -41,12 +41,12 @@ pub struct Status {
 pub fn failed(o: &Outcome) -> Option<String> {
 	match o {
 		Outcome::NoTarget | Outcome::Idle | Outcome::Moved | Outcome::Stalled => None,
-		Outcome::AskFailed(e) => Some(t!("light-ask-failed", error = e)),
-		Outcome::FetchFailed(e) => Some(t!("light-fetch-failed", error = e)),
-		Outcome::ApplyFailed(e) => Some(t!("light-apply-failed", error = e)),
-		Outcome::CollectFailed(e) => Some(t!("light-collect-failed", error = e)),
-		Outcome::Refused(e) => Some(t!("light-batch-refused", error = e)),
-		Outcome::DeliverFailed(e) => Some(t!("light-deliver-failed", error = e)),
+		Outcome::AskFailed(e) => Some(t!("lite-ask-failed", error = e)),
+		Outcome::FetchFailed(e) => Some(t!("lite-fetch-failed", error = e)),
+		Outcome::ApplyFailed(e) => Some(t!("lite-apply-failed", error = e)),
+		Outcome::CollectFailed(e) => Some(t!("lite-collect-failed", error = e)),
+		Outcome::Refused(e) => Some(t!("lite-batch-refused", error = e)),
+		Outcome::DeliverFailed(e) => Some(t!("lite-deliver-failed", error = e)),
 	}
 }
 
@@ -64,7 +64,7 @@ impl Said {
 			Some(_) => {}
 			None => {
 				if self.0.remove(key).is_some() {
-					say(t!("light-fine-again", what = key));
+					say(t!("lite-fine-again", what = key));
 				}
 			}
 		}
@@ -102,16 +102,16 @@ pub async fn run_until(node: Arc<Node>, status: Arc<Mutex<Status>>, say: impl Fn
 			if let Some(n) = node.tls.as_ref().and_then(|t| t.news()) {
 				match n {
 					Ok(text) => {
-						say(t!("light-tls-news", text = text));
+						say(t!("lite-tls-news", text = text));
 						said.say(&say, "link TLS", None);
 					}
-					Err(e) => said.say(&say, "link TLS", Some(t!("light-tls-problem", error = e))),
+					Err(e) => said.say(&say, "link TLS", Some(t!("lite-tls-problem", error = e))),
 				}
 			}
 			match r {
 				Ok(g) if g.granted => {
 					if !granted || az_said.as_deref() != Some(g.az.as_str()) {
-						say(if g.az.is_empty() { t!("light-signed-in-flat") } else { t!("light-signed-in-az", az = g.az) });
+						say(if g.az.is_empty() { t!("lite-signed-in-flat") } else { t!("lite-signed-in-az", az = g.az) });
 						az_said = Some(g.az.clone());
 					}
 					granted = true;
@@ -128,7 +128,7 @@ pub async fn run_until(node: Arc<Node>, status: Arc<Mutex<Status>>, say: impl Fn
 					}
 					granted = false;
 					node.not_granted().await;
-					said.say(&say, "signin", Some(t!("light-signin-failed", error = e)));
+					said.say(&say, "signin", Some(t!("lite-signin-failed", error = e)));
 				}
 			}
 		}

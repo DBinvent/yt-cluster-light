@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! [i18n] What the light node says, in one language: en, ru, and - not reviewed - fr,
+//! [i18n] What the lite node says, in one language: en, ru, and - not reviewed - fr,
 //! de, zh, ja (`locales/`). An error's message starts with its code, the same in every
 //! language - after its SQLSTATE when it has one, which the extension reads at position
 //! 0. YT lite's codes have three digits (`YT-Ennn`: yt-core-proto YT-E001 to YT-E029,
@@ -124,7 +124,7 @@ mod tests {
 		let mut codes = BTreeMap::new();
 		for (k, m) in &en {
 			if let Some(c) = code(m) {
-				let n = yt_core_proto::i18n::light_code(c)
+				let n = yt_core_proto::i18n::lite_code(c)
 					.unwrap_or_else(|| panic!("{}: {} is not three digits - YT Cluster's have four", k, c));
 				assert!(n >= 30, "{}: {} is yt-core-proto's range", k, c);
 				assert!(codes.insert(c.to_string(), k.clone()).is_none(), "{} for {} and {}", c, codes[c], k);
@@ -173,7 +173,7 @@ mod tests {
 				if k.is_empty() || !k.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '.') {
 					continue;
 				}
-				if k.starts_with("light-") || k.starts_with("link-") {
+				if k.starts_with("lite-") || k.starts_with("link-") {
 					assert!(keys.contains(&k), "{}: t!(\"{}\") is in no locale file", path, k);
 				}
 				used.insert(k);
@@ -186,14 +186,14 @@ mod tests {
 	/// one message in each language, to see the files are the ones compiled in
 	#[test]
 	fn a_message_is_said_in_the_language_asked_for() {
-		let en = rust_i18n::t!("light-info-light", locale = "en").into_owned();
+		let en = rust_i18n::t!("lite-info-lite", locale = "en").into_owned();
 		assert_eq!(en, "YT lite: one database, a leaf of a YT cluster");
 		for l in &LANGS[1..] {
-			assert_ne!(rust_i18n::t!("light-info-az-untold", locale = *l).into_owned(),
-				rust_i18n::t!("light-info-az-untold", locale = "en").into_owned(), "{}", l);
+			assert_ne!(rust_i18n::t!("lite-info-az-untold", locale = *l).into_owned(),
+				rust_i18n::t!("lite-info-az-untold", locale = "en").into_owned(), "{}", l);
 		}
-		assert_eq!(rust_i18n::t!("light-info-light", locale = "pt").into_owned(), en, "a language without messages is English");
-		let m = rust_i18n::t!("light-one-database", locale = "ru", db = "appdb").into_owned();
+		assert_eq!(rust_i18n::t!("lite-info-lite", locale = "pt").into_owned(), en, "a language without messages is English");
+		let m = rust_i18n::t!("lite-one-database", locale = "ru", db = "appdb").into_owned();
 		assert!(m.starts_with("0A000: YT-E056 ") && m.contains("appdb"), "{}", m);
 	}
 }

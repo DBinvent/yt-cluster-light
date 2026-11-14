@@ -7,7 +7,7 @@ terms (see [LICENSE](LICENSE)).
 
 Open an issue on GitHub for a bug or a feature request. For a bug, say which part it is
 about - the PostgreSQL extension (`ytpgc`), the protos and their types (`yt-core-proto`)
-or the light node (`yt-core`) - and give its version (`VERSION`; `select yt_info('T')`
+or the lite node (`yt-core`) - and give its version (`VERSION`; `select yt_info('T')`
 for an installed extension, `yt-lite -V` for the service), the PostgreSQL major and the
 platform (glibc, EL9, musl), and the
 smallest sequence of statements or calls that shows it: what you did, what you expected,
@@ -33,7 +33,7 @@ A security problem is not reported in a public issue: write to
    compiled by another build too, beside its own versions of `store`, `members`, `calls`
    and `offer`: they use only yt-core-proto, std, tokio, rust-i18n and those four files
    (`super::`), no `crate::` paths and no logging, and a change to what they call from the
-   four files changes the light node's versions too. A message they say is written
+   four files changes the lite node's versions too. A message they say is written
    `rust_i18n::t!("link-...")`, spelled out, with its text in `yt-core/locales/`.
 7. A message a user reads is in the crate's locale files (`locales/`), in all six
    languages (en, ru, fr, de, zh, ja), never a string in the code. An error's message

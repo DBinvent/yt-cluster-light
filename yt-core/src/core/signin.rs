@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! A lower az's sign-in to the az above - or a light node's to its cluster: what bytes
+//! A lower az's sign-in to the az above - or a lite node's to its cluster: what bytes
 //! it signs, and the call.
 //!
 //! The signatures themselves and the certificates stay on each side - a crypto
 //! library of its own there: this file holds only the bytes that are signed, so
 //! the two sides cannot disagree about them.
 //!
-//! Shared: the light node and ytserv compile this same file (no `crate::` paths,
+//! Shared: the lite node and ytserv compile this same file (no `crate::` paths,
 //! no logging, only yt-core-proto, std, tokio and the replaceable files beside it).
 use yt_core_proto::base::PeerUuid;
 use yt_core_proto::link::{LinkGrant, LinkSignIn, PeerAzLevel};
@@ -29,7 +29,7 @@ pub fn framed(parts: &[&[u8]]) -> Vec<u8> {
 }
 
 /// What `ca_proof` signs: possession of the lower CA's key, over the upper's
-/// challenge for this az (the az's uuid) and the CA's fingerprint. A light node has
+/// challenge for this az (the az's uuid) and the CA's fingerprint. A lite node has
 /// no az: its own uuid stands there, what the cluster knows it by.
 pub fn proof_message(challenge: &[u8], az: &str, fp: &str) -> Vec<u8> {
 	framed(&[PROOF_DOMAIN, challenge, az.as_bytes(), fp.as_bytes()])
@@ -51,7 +51,7 @@ pub fn roots_message(roots: &[Vec<u8>]) -> Vec<u8> {
 /// the countersigned CA and the roots. A refusal is an answer too: `Ok` with `granted`
 /// false and the reason; `Err` only when no answer came.
 ///
-/// A light node has no az and names none for the cluster above (`store::my_az` and
+/// A lite node has no az and names none for the cluster above (`store::my_az` and
 /// `upper` are empty): its sign-in carries no `target_az`, and the cluster knows it by
 /// its node uuid.
 pub async fn sign_in(node: &store::Node, upper: &str) -> Result<LinkGrant, String> {
@@ -61,7 +61,7 @@ pub async fn sign_in(node: &store::Node, upper: &str) -> Result<LinkGrant, Strin
 	let mut req = LinkSignIn {
 		peer: store::me(node).await,
 		// the az this node presents, which the far side matches its key against - none
-		// from a light node
+		// from a lite node
 		target_az: if mine.is_empty() { None } else { Some(PeerUuid::from(mine.to_string())) },
 		level: PeerAzLevel::Upper as i32,
 		base: store::api(node).await,
@@ -73,7 +73,7 @@ pub async fn sign_in(node: &store::Node, upper: &str) -> Result<LinkGrant, Strin
 	Ok(grant)
 }
 
-/// [i18n] said under its code, in the binary's language - the light node's and ytserv's:
+/// [i18n] said under its code, in the binary's language - the lite node's and ytserv's:
 /// the message is in yt-core's locale files, which ytserv reads too (by symlink).
 fn no_target(upper: &str) -> String {
 	if upper.is_empty() {

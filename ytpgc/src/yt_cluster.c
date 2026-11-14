@@ -1473,7 +1473,7 @@ yt_complete(PG_FUNCTION_ARGS)
      * Not connected: nothing of this transaction reached ytserv when nothing is to complete
      * (g_txn_dirty) - it changed nothing, or only tables with no trigger, in a session that
      * has not connected yet. That completes as nothing, 0, as a transaction with no id below
-     * does, and as a light node answered (2026-11-14: a cluster node raised "not connected"
+     * does, and as a lite node answered (2026-11-14: a cluster node raised "not connected"
      * for it, the first transaction of a session only). Rows sent and the connection marked
      * down since: the error it was. A write a handler caught, rolled back over: refused, as
      * at the commit.

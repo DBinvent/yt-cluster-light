@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! yt-turso-load: an application on Turso with the light node inside it (yt-core, feature
+//! yt-turso-load: an application on Turso with the lite node inside it (yt-core, feature
 //! `turso`) - a leaf of a YT Cluster - and a load on it like pgbench's. The end-to-end test of
 //! a Turso leaf drives it (yt-cluster-tests hier/87_load.sh with YX_LOAD_LEAF=turso).
 //!
@@ -9,7 +9,7 @@
 //!     with <rows> rows, and in each other schema `accounts` (<accounts> rows) and `history`
 //! yt-turso-load run --db <file> --dir <dir> --uuid <uuid> --upper <hosts> --root <SHA256:...>
 //!                   --cluster-db <name> --schema <s> --tx <n> [--key-dir <dir>]
-//!     the light node on <file>, its writes those of schema <s>; in <dir>: `status`, rewritten
+//!     the lite node on <file>, its writes those of schema <s>; in <dir>: `status`, rewritten
 //!     each second; `go`, made by the test: <n> transactions on <s> then; `stop`: once
 //!     nothing waits to go up and nothing new comes down, each table dumped to
 //!     <dir>/dump/<table>.tsv - PostgreSQL's COPY text, in key order - and the end

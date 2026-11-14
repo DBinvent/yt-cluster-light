@@ -16,7 +16,7 @@ use tokio::sync::{mpsc, oneshot};
 use yt_core::core::relay::{self, Outcome};
 use yt_core::core::{signin, store::{Node, ABOVE}};
 use yt_core::pg::Pg;
-use yt_core::service::Light;
+use yt_core::service::Lite;
 
 // [i18n] this binary's own copy of the messages (locales/): `t!` looks them up in the
 // crate it is written in, and the binary is one beside the library
@@ -27,7 +27,7 @@ macro_rules! t {
 
 /// What `-h` prints, and a wrong command line after its error: in the language set.
 fn usage() -> String {
-	format!("{}\n{}\n{}\n{}", t!("light-usage-about"), t!("light-usage-args"), t!("light-usage-settings"), t!("light-usage-link"))
+	format!("{}\n{}\n{}\n{}", t!("lite-usage-about"), t!("lite-usage-args"), t!("lite-usage-settings"), t!("lite-usage-link"))
 }
 
 /// yt-lite's settings, from `--file` (`file`) first, then the config table's module-L
@@ -44,7 +44,7 @@ struct Settings {
 
 fn settings(file: &HashMap<String, String>, rows: &HashMap<String, String>) -> Result<Settings, String> {
 	let get = |k: &str| file.get(k).or_else(|| rows.get(k)).map(|v| v.trim().to_string()).filter(|v| !v.is_empty());
-	let need = |k: &str| get(k).ok_or_else(|| t!("light-no-setting", name = k));
+	let need = |k: &str| get(k).ok_or_else(|| t!("lite-no-setting", name = k));
 	Ok(Settings {
 		upper: need("upper")?.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
 		cluster_db: get("cluster_db"),
@@ -60,7 +60,7 @@ fn key_dir(set: Option<&str>, home: Option<&str>, uuid: &str) -> Result<std::pat
 	match (set, home.filter(|h| !h.trim().is_empty())) {
 		(Some(d), _) => Ok(std::path::PathBuf::from(d)),
 		(None, Some(h)) => Ok(std::path::Path::new(h).join(".yt-lite").join(uuid)),
-		(None, None) => Err(t!("light-no-key-dir")),
+		(None, None) => Err(t!("lite-no-key-dir")),
 	}
 }
 
@@ -92,21 +92,21 @@ fn claim(socket: &str) -> Result<String, String> {
 	for _ in 0..2 {
 		match std::fs::OpenOptions::new().write(true).create_new(true).open(&pid_file) {
 			Ok(mut f) => {
-				f.write_all(std::process::id().to_string().as_bytes()).map_err(|e| t!("light-pid-file", file = pid_file, error = e))?;
+				f.write_all(std::process::id().to_string().as_bytes()).map_err(|e| t!("lite-pid-file", file = pid_file, error = e))?;
 				let _ = std::fs::remove_file(socket); // a stale one: a socket is bound new
 				return Ok(pid_file);
 			}
 			Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
 				let pid = std::fs::read_to_string(&pid_file).unwrap_or_default();
 				if holds(&pid) {
-					return Err(t!("light-another-node", socket = socket, pid = pid.trim(), file = pid_file));
+					return Err(t!("lite-another-node", socket = socket, pid = pid.trim(), file = pid_file));
 				}
 				let _ = std::fs::remove_file(&pid_file);
 			}
-			Err(e) => return Err(t!("light-pid-file", file = pid_file, error = e)),
+			Err(e) => return Err(t!("lite-pid-file", file = pid_file, error = e)),
 		}
 	}
-	Err(t!("light-pid-race", file = pid_file))
+	Err(t!("lite-pid-race", file = pid_file))
 }
 
 /// The pid file and the socket, if they are still this process's.
@@ -131,7 +131,7 @@ impl Said {
 			Some(_) => {}
 			None => {
 				if self.0.remove(key).is_some() {
-					info!(log, "{}", t!("light-fine-again", what = key));
+					info!(log, "{}", t!("lite-fine-again", what = key));
 				}
 			}
 		}
@@ -146,8 +146,8 @@ fn failed(o: &Outcome) -> Option<String> {
 /// Every second: transactions whose end never came are settled, the sign-in kept, and
 /// rows relayed down and up (the shared loops, core/relay.rs). A sign-in every minute,
 /// and whenever the calls moved to another node above: that node admits this one only
-/// once it signed in there. No az is named in any of it (`ABOVE`): a light node has none.
-async fn link(node: Arc<Node>, pg: Arc<Pg>, light: Light, log: Logger) {
+/// once it signed in there. No az is named in any of it (`ABOVE`): a lite node has none.
+async fn link(node: Arc<Node>, pg: Arc<Pg>, lite: Lite, log: Logger) {
 	let mut said = Said::default();
 	let mut granted = false;
 	let mut az_said: Option<String> = None;
@@ -158,20 +158,20 @@ async fn link(node: Arc<Node>, pg: Arc<Pg>, light: Light, log: Logger) {
 		match pg.resolve(2.0).await {
 			Ok(n) => {
 				if n > 0 {
-					info!(log, "{}", t!("light-settled", count = n));
+					info!(log, "{}", t!("lite-settled", count = n));
 				}
 				said.say(&log, "resolve", None);
 			}
-			Err(e) => said.say(&log, "resolve", Some(t!("light-resolve-failed", error = e))),
+			Err(e) => said.say(&log, "resolve", Some(t!("lite-resolve-failed", error = e))),
 		}
-		match light.sweep(Duration::from_secs(10)).await {
+		match lite.sweep(Duration::from_secs(10)).await {
 			Ok((sent, dropped)) => {
 				if sent + dropped > 0 {
-					info!(log, "{}", t!("light-swept", sent = sent, dropped = dropped));
+					info!(log, "{}", t!("lite-swept", sent = sent, dropped = dropped));
 				}
 				said.say(&log, "sweep", None);
 			}
-			Err(e) => said.say(&log, "sweep", Some(t!("light-sweep-failed", error = e))),
+			Err(e) => said.say(&log, "sweep", Some(t!("lite-sweep-failed", error = e))),
 		}
 		let turn = yt_core::core::calls::turn(&node).await;
 		if !granted || signed_turn != Some(turn) || signed_at.is_none_or(|t| t.elapsed() > Duration::from_secs(60)) {
@@ -181,10 +181,10 @@ async fn link(node: Arc<Node>, pg: Arc<Pg>, light: Light, log: Logger) {
 			if let Some(n) = node.tls.as_ref().and_then(|t| t.news()) {
 				match n {
 					Ok(text) => {
-						warn!(log, "{}", t!("light-tls-news", text = text));
+						warn!(log, "{}", t!("lite-tls-news", text = text));
 						said.say(&log, "link TLS", None);
 					}
-					Err(e) => said.say(&log, "link TLS", Some(t!("light-tls-problem", error = e))),
+					Err(e) => said.say(&log, "link TLS", Some(t!("lite-tls-problem", error = e))),
 				}
 			}
 			match r {
@@ -192,9 +192,9 @@ async fn link(node: Arc<Node>, pg: Arc<Pg>, light: Light, log: Logger) {
 					// the az of the node signed in through, as it said: on change
 					if !granted || az_said.as_deref() != Some(g.az.as_str()) {
 						if g.az.is_empty() {
-							info!(log, "{}", t!("light-signed-in-flat"));
+							info!(log, "{}", t!("lite-signed-in-flat"));
 						} else {
-							info!(log, "{}", t!("light-signed-in-az", az = g.az));
+							info!(log, "{}", t!("lite-signed-in-az", az = g.az));
 						}
 						az_said = Some(g.az.clone());
 					}
@@ -217,7 +217,7 @@ async fn link(node: Arc<Node>, pg: Arc<Pg>, light: Light, log: Logger) {
 					}
 					granted = false;
 					node.not_granted().await;
-					said.say(&log, "signin", Some(t!("light-signin-failed", error = e)));
+					said.say(&log, "signin", Some(t!("lite-signin-failed", error = e)));
 				}
 			}
 		}
@@ -234,11 +234,11 @@ async fn link(node: Arc<Node>, pg: Arc<Pg>, light: Light, log: Logger) {
 async fn signalled() -> String {
 	use tokio::signal::unix::{signal, SignalKind};
 	let (Ok(mut i), Ok(mut t), Ok(mut h)) = (signal(SignalKind::interrupt()), signal(SignalKind::terminate()), signal(SignalKind::hangup()))
-	else { return t!("light-signal-none") };
+	else { return t!("lite-signal-none") };
 	tokio::select! {
-		_ = i.recv() => t!("light-signal-interrupt"),
-		_ = t.recv() => t!("light-signal-terminate"),
-		_ = h.recv() => t!("light-signal-hangup"),
+		_ = i.recv() => t!("lite-signal-interrupt"),
+		_ = t.recv() => t!("lite-signal-terminate"),
+		_ = h.recv() => t!("lite-signal-hangup"),
 	}
 }
 
@@ -289,7 +289,7 @@ async fn main() -> ExitCode {
 	let m = match marg::ArgConfig::from_args2("yt-lite", env!("CARGO_PKG_VERSION")) {
 		Ok(m) => m,
 		Err(e) => {
-			eprintln!("yt-lite: {}\n\n{}", t!("light-args", error = e), usage());
+			eprintln!("yt-lite: {}\n\n{}", t!("lite-args", error = e), usage());
 			return ExitCode::from(2);
 		}
 	};
@@ -335,7 +335,7 @@ async fn main() -> ExitCode {
 		pg.cluster_db = c.clone();
 	}
 	let pg = Arc::new(pg);
-	info!(log, "{}", t!("light-start", version = env!("CARGO_PKG_VERSION"), hosts = args.upper.join(", ")));
+	info!(log, "{}", t!("lite-start", version = env!("CARGO_PKG_VERSION"), hosts = args.upper.join(", ")));
 	let uuid = if m.uuid_gen { pg.node_uuid().await } else { Ok(m.uuid.as_u128()) };
 	let (socket, uuid) = match (pg.socket_path().await, uuid) {
 		(Ok(s), Ok(u)) => (s, u),
@@ -363,37 +363,37 @@ async fn main() -> ExitCode {
 	let tls = match yt_core::tls::Tls::open(&dir, &uuid_s, args.upper_root.as_deref()) {
 		Ok(t) => Arc::new(t),
 		Err(e) => {
-			error!(log, "{}", t!("light-ca", error = e));
+			error!(log, "{}", t!("lite-ca", error = e));
 			release(&socket, &pid_file);
 			return ExitCode::from(10);
 		}
 	};
-	info!(log, "{}", t!("light-ca-line", fingerprint = tls.fingerprint(), dir = tls.dir().display(), uuid = uuid_s));
+	info!(log, "{}", t!("lite-ca-line", fingerprint = tls.fingerprint(), dir = tls.dir().display(), uuid = uuid_s));
 	if !tls.pinned() {
-		warn!(log, "{}", t!("light-no-root"));
+		warn!(log, "{}", t!("lite-no-root"));
 	}
-	info!(log, "{}", t!("light-tls-line", status = tls.status()));
+	info!(log, "{}", t!("lite-tls-line", status = tls.status()));
 	let node = Arc::new(Node::with_pg(uuid, args.upper.clone(), pg.clone()).with_tls(tls));
 	let (stop, stopped) = oneshot::channel();
 	let (ended_send, mut ended) = mpsc::unbounded_channel();
-	let service = Light::new(node.clone(), pg.clone(), log.clone());
+	let service = Lite::new(node.clone(), pg.clone(), log.clone());
 	let swept = service.clone();
 	if let Err(e) = service.run(&socket, stopped, ended_send).await {
-		error!(log, "{}", t!("light-socket", error = e));
+		error!(log, "{}", t!("lite-socket", error = e));
 		release(&socket, &pid_file);
 		return ExitCode::from(15);
 	}
-	info!(log, "{}", t!("light-serving", db = pg.db, cluster_db = pg.cluster_db, socket = socket,
+	info!(log, "{}", t!("lite-serving", db = pg.db, cluster_db = pg.cluster_db, socket = socket,
 		uuid = yt_core_proto::uuid::Uuid::from_u128(uuid)));
 	let linker = tokio::spawn(link(node, pg, swept, log.clone()));
 	let why = tokio::select! {
 		s = signalled() => s,
-		e = ended.recv() => t!("light-socket-stopped", error = e.unwrap_or_default()),
+		e = ended.recv() => t!("lite-socket-stopped", error = e.unwrap_or_default()),
 	};
 	linker.abort();
 	let _ = stop.send(());
 	release(&socket, &pid_file);
-	warn!(log, "{}", t!("light-stopped", why = why));
+	warn!(log, "{}", t!("lite-stopped", why = why));
 	tokio::time::sleep(Duration::from_millis(100)).await; // the async log drains
 	ExitCode::SUCCESS
 }
@@ -439,12 +439,12 @@ mod tests {
 
 	#[test]
 	fn an_az_is_no_setting_its_own_or_the_cluster_s() {
-		// a light node has no az: neither asked for nor read - with and without the rows
+		// a lite node has no az: neither asked for nor read - with and without the rows
 		let with = settings(&HashMap::new(), &m(&[("az", "dev1"), ("upper_az", "top"), ("upper", "u")])).unwrap();
 		let without = settings(&HashMap::new(), &m(&[("upper", "u")])).unwrap();
 		assert_eq!(with, without);
 		assert!(!usage().contains("upper_az"), "the usage names no az setting");
-		assert!(usage().contains("No az: a light node has none to set"));
+		assert!(usage().contains("No az: a lite node has none to set"));
 	}
 
 	#[test]

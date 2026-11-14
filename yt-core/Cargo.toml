@@ -24,10 +24,10 @@ service = ["tls", "dep:marg", "dep:tokio-postgres", "dep:tokio-stream", "dep:slo
 # the node's CA and the TLS of its calls to the cluster above (src/tls.rs): yt-lite's, and an
 # application's that links its own database (feature turso)
 tls = ["dep:openssl", "dep:tokio-openssl", "dep:hyper-util", "dep:tower", "dep:base64", "tokio/net"]
-# the light node inside an application, on Turso, the application's own database
+# the lite node inside an application, on Turso, the application's own database
 # (src/turso.rs): its rows captured by triggers, what comes down applied there
 turso = ["tls", "lite", "dep:turso"]
-# a light node's store in a database of the SQLite dialect (src/lite.rs): Turso's (feature
+# a lite node's store in a database of the SQLite dialect (src/lite.rs): Turso's (feature
 # turso), SQLite's (yt-sqlite, the loadable extension)
 lite = ["dep:serde_json", "dep:prost", "dep:base64"]
 

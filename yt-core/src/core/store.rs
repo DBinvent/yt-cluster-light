@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! The light node's version of a replaceable file: the node itself, its rows and
+//! The lite node's version of a replaceable file: the node itself, its rows and
 //! its cursor. (ytserv has its own `store.rs`: the cluster log and its apply lane.)
 //!
-//! **A light node has no az.** An az places a cluster's nodes and relates clusters to
-//! each other - which leader signs in above, which neighbours it dials. A light node is
+//! **A lite node has no az.** An az places a cluster's nodes and relates clusters to
+//! each other - which leader signs in above, which neighbours it dials. A lite node is
 //! none of that: a leaf of one cluster, the lowest there is, with nothing below it, never
 //! a leader, never dialling a neighbour. So it names no az, for itself or for the cluster
 //! above - wherever the shared link files ask for one (`my_az`, the `upper` of a relay
 //! turn) it answers with none. The node it is linked to takes it for a node of its own
-//! az and says which (`told_az`); a light node cannot set that.
+//! az and says which (`told_az`); a lite node cannot set that.
 //!
 //! A node's store (`crate::db::Db`) holds both: in yt-lite, the service beside one
 //! PostgreSQL instance, that database (`crate::pg`); inside an application, its own
@@ -24,11 +24,11 @@ use yt_core_proto::link::{RelayBatch, RelayItem};
 use super::pos::{to_pos, Pos};
 use super::route::Flow;
 
-/// The cluster above, where a shared link file asks which az that is: a light node has
+/// The cluster above, where a shared link file asks which az that is: a lite node has
 /// one cluster above and names no az for it.
 pub const ABOVE: &str = "";
 
-/// A light node: a leaf of one cluster, known there by its uuid. It has no az (see the
+/// A lite node: a leaf of one cluster, known there by its uuid. It has no az (see the
 /// head of this file).
 pub struct Node {
 	/// its own uuid: what the cluster above knows it by
@@ -126,14 +126,14 @@ pub async fn me(node: &Node) -> Option<PeerUuid> {
 	Some(PeerUuid::from(node.uuid))
 }
 
-/// The az of a light node: none. The shared link files put it in a sign-in, a fetch and
-/// a batch - a light node leaves all three empty, and the node above reads none of them
+/// The az of a lite node: none. The shared link files put it in a sign-in, a fetch and
+/// a batch - a lite node leaves all three empty, and the node above reads none of them
 /// from it.
 pub async fn my_az(_node: &Node) -> String {
 	String::new()
 }
 
-/// How far this node applied what came down. One cursor, whatever `_src` names: a light
+/// How far this node applied what came down. One cursor, whatever `_src` names: a lite
 /// node has one cluster above, and the positions are that cluster's.
 pub async fn cursor(node: &Node, _src: &str) -> Option<Pos> {
 	if let Some(db) = &node.db {
@@ -142,13 +142,13 @@ pub async fn cursor(node: &Node, _src: &str) -> Option<Pos> {
 	*node.cursor.lock().await
 }
 
-/// What goes up after `from`: the outbox, every row of it - a light node writes
+/// What goes up after `from`: the outbox, every row of it - a lite node writes
 /// only its own tables. At most `max_rows` rows, whole batches; `more` when some
 /// are left. The position is the last batch taken, or `from` with none.
 pub async fn collect(node: &Node, _to_az: &str, flow: Flow, from: Option<Pos>, max_rows: usize)
 	-> Result<(Vec<RelayItem>, Pos, bool), String> {
 	if flow != Flow::Up {
-		return Err(t!("light-leaf-no-down"));
+		return Err(t!("lite-leaf-no-down"));
 	}
 	if let Some(db) = &node.db {
 		return db.collect(from, max_rows).await;
@@ -190,7 +190,7 @@ pub async fn apply(node: &Node, batch: &RelayBatch) -> Result<Option<Pos>, Strin
 	Ok(Some(upto))
 }
 
-/// A round ran: a light node keeps no record of it.
+/// A round ran: a lite node keeps no record of it.
 pub async fn note_round(_node: &Node, _az: &str, _flow: Flow, _idle: bool) {}
 
 /// The cluster above holds everything through `upto`: those outbox batches can go.

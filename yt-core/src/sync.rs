@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! Which of a light node's tables sync, and which way: as on a cluster node, a table syncs
+//! Which of a lite node's tables sync, and which way: as on a cluster node, a table syncs
 //! when its config table holds an A row for it (`schema.table`) - `yt_setup` writes one with
 //! the table's trigger - and its rows go up unless the row's value says `no_up`, down unless
 //! `no_down`. A table with no A row syncs neither way: what comes down for it is not applied

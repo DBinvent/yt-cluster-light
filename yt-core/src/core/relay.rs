@@ -3,14 +3,14 @@
 //! to this az from the az above and applies it; `up` delivers what this az
 //! committed that crosses up, from where the az above says it is.
 //!
-//! A light node drives it the same way and has no az: `store::my_az` answers with
+//! A lite node drives it the same way and has no az: `store::my_az` answers with
 //! none and `upper` is empty (`store::ABOVE`) - the node it calls takes it for a node
 //! of its own az, and reads no az from it.
 //!
 //! Every receiver skips what is at or below its own cursor, so a batch may be sent
 //! again at no cost but the transfer: a batch applied twice changes nothing.
 //!
-//! Shared: the light node and ytserv compile this same file. It reaches its node
+//! Shared: the lite node and ytserv compile this same file. It reaches its node
 //! only through the replaceable files beside it - `store` (the node, its rows and
 //! its cursor), `members` (who else applies what this node applies), `calls` (the
 //! node above) - and logs nothing: each turn returns an `Outcome` for the caller.
@@ -123,7 +123,7 @@ pub async fn up(node: &store::Node, upper: &str) -> Outcome {
 			return if moved { Outcome::Moved } else { Outcome::Idle };
 		}
 		let carried = !items.is_empty() || more;
-		// `light` is not a sender's to set: the node a light node delivers to names it
+		// `lite` is not a sender's to set: the node a lite node delivers to names it
 		let batch = RelayBatch { base: store::api(node).await, source_az: me.clone(), items,
 			upto: Some(wire(upto)), more, ..Default::default() };
 		let at = match calls::deliver(node, &target, batch).await {

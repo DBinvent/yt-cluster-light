@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! The light node's version of a replaceable file: the calls to the cluster above, over
+//! The lite node's version of a replaceable file: the calls to the cluster above, over
 //! the public Link service. (ytserv has its own `calls.rs`: its peer pool, and a
 //! target that is not leading there.)
 //!
@@ -32,7 +32,7 @@ pub async fn forget(node: &Node, _az: &str) {
 }
 
 /// Which turn of the hosts the calls are at: it changes whenever a target is forgotten.
-/// The cluster above admits a light node on the node it signed in through, so a new target
+/// The cluster above admits a lite node on the node it signed in through, so a new target
 /// is signed in to before anything else is asked of it.
 pub async fn turn(node: &Node) -> usize {
 	*node.next_host.lock().await
@@ -67,7 +67,7 @@ async fn connect(node: &Node, t: &Target, tls: bool) -> Result<Channel, String> 
 		return ep.connect_with_connector(tower::service_fn(move |_: tonic::transport::Uri| {
 			let (tls, addr) = (tls.clone(), addr.clone());
 			async move { tls.dial(&addr, CONNECT_TIMEOUT).await.map(hyper_util::rt::TokioIo::new) }
-		})).await.map_err(|e| t!("light-call-tls", host = t, error = e));
+		})).await.map_err(|e| t!("lite-call-tls", host = t, error = e));
 	}
 	tonic::transport::Endpoint::new(t.clone()).map_err(|e| format!("{}: {}", t, e))?
 		.connect_timeout(CONNECT_TIMEOUT).connect().await.map_err(|e| format!("{}: {}", t, e))
@@ -94,20 +94,20 @@ async fn failed(node: &Node, t: &Target, e: tonic::Status) -> String {
 /// A node that has no Link service - a YT Cluster before 1.21 - answers Unimplemented, with
 /// no text: said as what it is, the host named
 fn no_link(t: &Target, e: &tonic::Status) -> Option<String> {
-	(e.code() == tonic::Code::Unimplemented).then(|| t!("light-no-link-service", host = t))
+	(e.code() == tonic::Code::Unimplemented).then(|| t!("lite-no-link-service", host = t))
 }
 
 /// [compat] What a YT Cluster leader before 1.21 answers a sign-in that names no az - a
-/// light node's, which it does not know: its words, as that release says them
-const BEFORE_LIGHT: &str = "sign-in carried a level but no target_az";
+/// lite node's, which it does not know: its words, as that release says them
+const BEFORE_LITE: &str = "sign-in carried a level but no target_az";
 
 /// A refusal of the cluster above as yt-lite says it: one from a leader before 1.21 with
 /// what that means, any other as it is
 pub fn refused(reason: &str) -> String {
-	if reason.contains(BEFORE_LIGHT) {
-		t!("light-leader-before-link", reason = reason)
+	if reason.contains(BEFORE_LITE) {
+		t!("lite-leader-before-link", reason = reason)
 	} else {
-		t!("light-signin-refused", reason = reason)
+		t!("lite-signin-refused", reason = reason)
 	}
 }
 
@@ -157,9 +157,9 @@ pub async fn signin(node: &Node, t: &Target, req: LinkSignIn) -> Result<LinkGran
 	// for TLS is taken only as it chains to the root pinned in `upper_root` (tls.rs `take`);
 	// its `granted` and `az` are taken as they are: the az is shown, no more, and the fetch
 	// and deliver after it are TLS again, which a node without the cluster's chain cannot answer.
-	let ch = connect(node, t, false).await.map_err(|e| t!("light-call-then-plaintext", first = first, error = e))?;
+	let ch = connect(node, t, false).await.map_err(|e| t!("lite-call-then-plaintext", first = first, error = e))?;
 	LinkClient::new(ch).signin(timed(req)).await.map(|r| r.into_inner())
-		.map_err(|e| t!("light-call-then-plaintext", first = first, error = no_link(t, &e).unwrap_or_else(|| e.message().to_string())))
+		.map_err(|e| t!("lite-call-then-plaintext", first = first, error = no_link(t, &e).unwrap_or_else(|| e.message().to_string())))
 }
 
 #[cfg(test)]
@@ -180,12 +180,12 @@ mod tests {
 	/// [compat] a leader before 1.21 refuses a sign-in with no az in its own words: said with
 	/// what that means; any other refusal as it is
 	#[test]
-	fn a_refusal_of_a_leader_before_light_nodes_says_so() {
+	fn a_refusal_of_a_leader_before_lite_nodes_says_so() {
 		crate::i18n::set("en");
 		let old = "sign-in carried a level but no target_az, so there is no cluster to match a key against";
 		let m = refused(old);
 		assert!(m.starts_with("YT-E078 ") && m.contains(old) && m.contains("1.21"), "{m}");
-		let m = refused("light node x awaits approval");
-		assert_eq!(m, "YT-E051 the cluster above refused the sign-in: light node x awaits approval");
+		let m = refused("lite node x awaits approval");
+		assert_eq!(m, "YT-E051 the cluster above refused the sign-in: lite node x awaits approval");
 	}
 }

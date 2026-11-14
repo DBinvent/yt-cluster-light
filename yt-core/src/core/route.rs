@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
 //! Which way a table's rows go across a link, and who may dial whom.
 //!
-//! Shared: the light node and ytserv compile this same file (no `crate::` paths,
+//! Shared: the lite node and ytserv compile this same file (no `crate::` paths,
 //! no logging, only yt-core-proto, std, tokio and the replaceable files beside it).
 use yt_core_proto::link::{AzRouting, PeerAzLevel as AzLevel};
 use yt_core_proto::uuid::Uuid;
@@ -159,22 +159,22 @@ pub fn accepts(routing: Option<&AzRouting>, my_az: &str, from_az: &str) -> bool 
 	role_for(Some(r), Some(my_az), None).holds && role_for(Some(r), Some(from_az), None).writes
 }
 
-/// Does a row of this table cross between a node and a light node linked to it, going
+/// Does a row of this table cross between a node and a lite node linked to it, going
 /// `flow`?
 ///
-/// A light node has no az of its own: it is taken for a node of the az of the node it
+/// A lite node has no az of its own: it is taken for a node of the az of the node it
 /// is linked to - `az`, in the cluster `cluster` - and cannot say otherwise. So the
 /// answer is that node's own role (`role_for`), across a link:
 ///
 /// - only a ROUTED table crosses, as across any link - an unrouted one is the
 ///   cluster's own, the config table first of all;
 /// - down, a table that node holds, unless `no_down`;
-/// - up - a row written on the light node - a table that node may write, unless
+/// - up - a row written on the lite node - a table that node may write, unless
 ///   `no_up`.
 ///
 /// In a cluster with no azs (`az` none) a routing rule excludes nobody, here either:
 /// every routed table crosses, both ways, but for its `no_down` / `no_up`.
-pub fn crosses_light(routing: Option<&AzRouting>, az: Option<&str>, cluster: Option<&str>, flow: Flow) -> bool {
+pub fn crosses_lite(routing: Option<&AzRouting>, az: Option<&str>, cluster: Option<&str>, flow: Flow) -> bool {
 	let Some(r) = routing else { return false };
 	let role = role_for(Some(r), az, cluster);
 	match flow {
@@ -183,12 +183,12 @@ pub fn crosses_light(routing: Option<&AzRouting>, az: Option<&str>, cluster: Opt
 	}
 }
 
-/// May a row a light node wrote be applied here, on a member of the cluster it is
-/// linked to? The row counts as written in `from_az`, the az of the node the light
-/// node delivered to: the table must go up at all (`crosses_light`, there), and be
+/// May a row a lite node wrote be applied here, on a member of the cluster it is
+/// linked to? The row counts as written in `from_az`, the az of the node the lite
+/// node delivered to: the table must go up at all (`crosses_lite`, there), and be
 /// held here - `my_az`, in the same cluster.
-pub fn accepts_light(routing: Option<&AzRouting>, my_az: Option<&str>, from_az: Option<&str>, cluster: Option<&str>) -> bool {
-	crosses_light(routing, from_az, cluster, Flow::Up) && role_for(routing, my_az, cluster).holds
+pub fn accepts_lite(routing: Option<&AzRouting>, my_az: Option<&str>, from_az: Option<&str>, cluster: Option<&str>) -> bool {
+	crosses_lite(routing, from_az, cluster, Flow::Up) && role_for(routing, my_az, cluster).holds
 }
 
 #[cfg(test)]
@@ -234,64 +234,64 @@ mod tests {
 		assert!(!accepts(None, "eastc", "top"), "unrouted");
 	}
 
-	/// A light node has no az: what crosses to it and from it is decided by the az of the
+	/// A lite node has no az: what crosses to it and from it is decided by the az of the
 	/// node it is linked to - that node's role - and only for a routed table.
 	#[test]
-	fn a_light_node_takes_what_the_az_of_its_node_holds() {
+	fn a_lite_node_takes_what_the_az_of_its_node_holds() {
 		let c = Some("4b2d1c3e-0000-4000-8000-00000000000a");
 		let both = routing(&["top", "eastc"], &[], false, false);
-		assert!(crosses_light(Some(&both), Some("top"), c, Flow::Down));
-		assert!(crosses_light(Some(&both), Some("top"), c, Flow::Up));
-		assert!(!crosses_light(Some(&both), Some("westc"), c, Flow::Down), "its node's az does not hold it");
-		assert!(!crosses_light(Some(&both), Some("westc"), c, Flow::Up));
-		assert!(!crosses_light(None, Some("top"), c, Flow::Down), "unrouted: the cluster's own");
-		assert!(!crosses_light(None, Some("top"), c, Flow::Up));
+		assert!(crosses_lite(Some(&both), Some("top"), c, Flow::Down));
+		assert!(crosses_lite(Some(&both), Some("top"), c, Flow::Up));
+		assert!(!crosses_lite(Some(&both), Some("westc"), c, Flow::Down), "its node's az does not hold it");
+		assert!(!crosses_lite(Some(&both), Some("westc"), c, Flow::Up));
+		assert!(!crosses_lite(None, Some("top"), c, Flow::Down), "unrouted: the cluster's own");
+		assert!(!crosses_lite(None, Some("top"), c, Flow::Up));
 		// held and read-only in its node's az: down, never up
 		let read = routing(&["top", "eastc"], &["top"], false, false);
-		assert!(crosses_light(Some(&read), Some("eastc"), c, Flow::Down));
-		assert!(!crosses_light(Some(&read), Some("eastc"), c, Flow::Up), "its node's az may not write it");
-		assert!(crosses_light(Some(&read), Some("top"), c, Flow::Up));
+		assert!(crosses_lite(Some(&read), Some("eastc"), c, Flow::Down));
+		assert!(!crosses_lite(Some(&read), Some("eastc"), c, Flow::Up), "its node's az may not write it");
+		assert!(crosses_lite(Some(&read), Some("top"), c, Flow::Up));
 		// the link's own flags
 		let no_down = routing(&["top"], &[], false, true);
-		assert!(!crosses_light(Some(&no_down), Some("top"), c, Flow::Down));
-		assert!(crosses_light(Some(&no_down), Some("top"), c, Flow::Up));
+		assert!(!crosses_lite(Some(&no_down), Some("top"), c, Flow::Down));
+		assert!(crosses_lite(Some(&no_down), Some("top"), c, Flow::Up));
 		let no_up = routing(&["top"], &[], true, false);
-		assert!(crosses_light(Some(&no_up), Some("top"), c, Flow::Down));
-		assert!(!crosses_light(Some(&no_up), Some("top"), c, Flow::Up));
+		assert!(crosses_lite(Some(&no_up), Some("top"), c, Flow::Down));
+		assert!(!crosses_lite(Some(&no_up), Some("top"), c, Flow::Up));
 		// a rule naming the cluster names its node, whatever zone that node is in
 		let by_cluster = routing(&["4B2D1C3E-0000-4000-8000-00000000000A"], &[], false, false);
-		assert!(crosses_light(Some(&by_cluster), Some("east"), c, Flow::Down));
-		assert!(!crosses_light(Some(&by_cluster), Some("east"), None, Flow::Down));
+		assert!(crosses_lite(Some(&by_cluster), Some("east"), c, Flow::Down));
+		assert!(!crosses_lite(Some(&by_cluster), Some("east"), None, Flow::Down));
 	}
 
-	/// In a cluster with no azs a routing rule excludes nobody - a light node neither:
+	/// In a cluster with no azs a routing rule excludes nobody - a lite node neither:
 	/// every routed table crosses, an unrouted one still does not.
 	#[test]
-	fn a_light_node_of_a_cluster_with_no_azs_takes_every_routed_table() {
+	fn a_lite_node_of_a_cluster_with_no_azs_takes_every_routed_table() {
 		let any = routing(&["whatever"], &["whatever"], false, false);
 		for az in [None, Some(""), Some("  ")] {
-			assert!(crosses_light(Some(&any), az, None, Flow::Down));
-			assert!(crosses_light(Some(&any), az, None, Flow::Up));
-			assert!(!crosses_light(None, az, None, Flow::Down));
+			assert!(crosses_lite(Some(&any), az, None, Flow::Down));
+			assert!(crosses_lite(Some(&any), az, None, Flow::Up));
+			assert!(!crosses_lite(None, az, None, Flow::Down));
 		}
-		assert!(!crosses_light(Some(&routing(&["x"], &[], false, true)), None, None, Flow::Down), "no_down still holds");
+		assert!(!crosses_lite(Some(&routing(&["x"], &[], false, true)), None, None, Flow::Down), "no_down still holds");
 	}
 
-	/// A light node's row on a member: written in the az of the node it delivered to,
+	/// A lite node's row on a member: written in the az of the node it delivered to,
 	/// applied where the table is held.
 	#[test]
-	fn a_light_node_s_row_is_applied_where_the_table_is_held() {
+	fn a_lite_node_s_row_is_applied_where_the_table_is_held() {
 		let c = Some("4b2d1c3e-0000-4000-8000-00000000000a");
 		let r = routing(&["east", "west"], &["east"], false, false);
-		assert!(accepts_light(Some(&r), Some("west"), Some("east"), c), "written in east, held in west");
-		assert!(!accepts_light(Some(&r), Some("east"), Some("west"), c), "west may not write it");
-		assert!(!accepts_light(Some(&r), Some("north"), Some("east"), c), "not held in north");
-		assert!(!accepts_light(None, Some("east"), Some("east"), c), "unrouted");
-		assert!(!accepts_light(Some(&routing(&["east"], &[], true, false)), Some("east"), Some("east"), c), "no_up");
-		assert!(accepts_light(Some(&routing(&["x"], &[], false, false)), None, None, None), "no azs: every routed table");
+		assert!(accepts_lite(Some(&r), Some("west"), Some("east"), c), "written in east, held in west");
+		assert!(!accepts_lite(Some(&r), Some("east"), Some("west"), c), "west may not write it");
+		assert!(!accepts_lite(Some(&r), Some("north"), Some("east"), c), "not held in north");
+		assert!(!accepts_lite(None, Some("east"), Some("east"), c), "unrouted");
+		assert!(!accepts_lite(Some(&routing(&["east"], &[], true, false)), Some("east"), Some("east"), c), "no_up");
+		assert!(accepts_lite(Some(&routing(&["x"], &[], false, false)), None, None, None), "no azs: every routed table");
 		// named by the cluster: every member of it holds the table, whatever its zone
 		let by_cluster = routing(&["4b2d1c3e-0000-4000-8000-00000000000a"], &[], false, false);
-		assert!(accepts_light(Some(&by_cluster), Some("west"), Some("east"), c));
+		assert!(accepts_lite(Some(&by_cluster), Some("west"), Some("east"), c));
 	}
 
 	#[test]

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT - Copyright (c) 2026 DBinvent
-//! The light node's version of a replaceable file: the members that apply what
-//! this node applies. A light node is a leaf, one node: it has none. (ytserv has its
+//! The lite node's version of a replaceable file: the members that apply what
+//! this node applies. A lite node is a leaf, one node: it has none. (ytserv has its
 //! own `members.rs`: the slowest fresh member, and the fan-out to them.)
 use yt_core_proto::link::RelayBatch;
 
