@@ -34,7 +34,8 @@ jobs:
         with:
           path: yt-cluster-light
       - uses: dtolnay/rust-toolchain@stable
-      - run: sudo apt-get update && sudo apt-get install -y libssl-dev
+      # protoc for yt-core-proto's build.rs, the OpenSSL headers for yt-core's tests
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
       - name: one version - VERSION, yt-sqlite's, sqlpkg.json's
         run: |
           v="$(tr -d ' \n' < VERSION)"
@@ -73,6 +74,11 @@ jobs:
         with:
           path: yt-cluster-light
       - uses: dtolnay/rust-toolchain@stable
+      # protoc for yt-core-proto's build.rs - Windows builds from the generated files it keeps
+      - uses: arduino/setup-protoc@v3
+        if: runner.os != 'Windows'
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: ilammy/setup-nasm@v1
         if: runner.os == 'Windows'
       - name: the tag is this version

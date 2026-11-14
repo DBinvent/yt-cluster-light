@@ -69,5 +69,13 @@ jobs:
       - uses: taiki-e/install-action@v2
         with:
           tool: cargo-geiger
-      # a report, not a gate: the counts go to the log and the summary page
-      - run: cargo geiger --workspace --output-format GitHubMarkdown | tee -a "$GITHUB_STEP_SUMMARY"
+      # a report, not a gate: the counts go to the log and the summary page. Each member of the
+      # workspace alone - geiger takes no virtual manifest (`--workspace` here was refused,
+      # 2026-11-14) and wants an absolute path - and its exit 1 for files of crates it did not
+      # scan (their docs, examples) is no failure; a member with no report is one
+      - run: |
+          for p in yt-core-proto yt-core yt-turso-load; do
+            out="$(cargo geiger --manifest-path "$PWD/$p/Cargo.toml" --output-format GitHubMarkdown 2> geiger.err)" || true
+            printf '## %s\n\n%s\n' "$p" "$out" | tee -a "$GITHUB_STEP_SUMMARY"
+            grep -q " $p " <<< "$out" || { tail -20 geiger.err; echo "no geiger report for $p"; exit 1; }
+          done

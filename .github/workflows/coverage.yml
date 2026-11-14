@@ -19,7 +19,7 @@ on:
 
 jobs:
   coverage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write   # the coverage badge's push, to the badges branch
     defaults:
@@ -40,8 +40,9 @@ jobs:
           tool: cargo-llvm-cov
       # protoc for the protos, the OpenSSL headers for yt-light's TLS; PostgreSQL and its server
       # headers, and what the extension builds with, for the tests on a throwaway PostgreSQL.
-      # The runner's own PostgreSQL, whichever major it ships: ubuntu-latest moved to 26.04,
-      # which has no postgresql-server-dev-16 (2026-11-14)
+      # The runner's own PostgreSQL, whichever major it ships. On Ubuntu 24.04: 26.04's apt could
+      # not install its PostgreSQL 18 server headers beside protobuf (2026-11-14, two conflicting
+      # assignments), and ubuntu-latest is 26.04 now
       - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
           postgresql postgresql-server-dev-all protobuf-c-compiler libprotobuf-c-dev libcurl4-openssl-dev
       - name: the extension, for the tests that run PostgreSQL
