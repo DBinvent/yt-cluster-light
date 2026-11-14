@@ -43,14 +43,18 @@ jobs:
         with:
           tool: cargo-llvm-cov
       # protoc for the protos, the OpenSSL headers for yt-light's TLS; PostgreSQL and its server
-      # headers, and what the extension builds with, for the tests on a throwaway PostgreSQL
+      # headers, and what the extension builds with, for the tests on a throwaway PostgreSQL.
+      # The runner's own PostgreSQL, whichever major it ships: ubuntu-latest moved to 26.04,
+      # which has no postgresql-server-dev-16 (2026-11-14)
       - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
-          postgresql postgresql-server-dev-16 protobuf-c-compiler libprotobuf-c-dev libcurl4-openssl-dev
+          postgresql postgresql-server-dev-all protobuf-c-compiler libprotobuf-c-dev libcurl4-openssl-dev
       - name: the extension, for the tests that run PostgreSQL
         run: |
-          make -C ytpgc
-          echo "YT_LIGHT_EXT_SO=$(ls "$PWD"/ytpgc/yt_cluster*-pg16-*.so)" >> "$GITHUB_ENV"
-          echo "PG_BIN=$(/usr/lib/postgresql/16/bin/pg_config --bindir)" >> "$GITHUB_ENV"
+          pg="$(ls /usr/lib/postgresql | sort -V | tail -1)"
+          echo "PostgreSQL $pg"
+          make -C ytpgc PG_CONFIG="/usr/lib/postgresql/$pg/bin/pg_config"
+          echo "YT_LIGHT_EXT_SO=$(ls "$PWD"/ytpgc/yt_cluster*-pg"$pg"-*.so)" >> "$GITHUB_ENV"
+          echo "PG_BIN=/usr/lib/postgresql/$pg/bin" >> "$GITHUB_ENV"
       - run: cargo llvm-cov --workspace --no-fail-fast --ignore-filename-regex protogen --lcov --output-path lcov.info
       # [coverage] our own badge, no third party: lcov.info's line coverage, drawn by
       # .github/coverage-badge.py and kept on the `badges` branch - one commit, replaced
