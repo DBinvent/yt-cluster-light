@@ -98,6 +98,6 @@ jobs:
           cp "yt-sqlite/target/release/${{ matrix.lib }}" "out/${{ matrix.name }}"
           py="$(command -v python3 || command -v python || ls /opt/python/cp312-cp312/bin/python3)"
           (cd out && "$py" -m zipfile -c "../yt-sqlite-$V-${{ matrix.platform }}.zip" "${{ matrix.name }}")
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           files: yt-cluster-light/yt-sqlite-*.zip
