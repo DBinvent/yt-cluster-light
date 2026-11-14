@@ -37,7 +37,8 @@ path = "src/main.rs"
 required-features = ["service"]
 
 [dependencies]
-yt-core-proto = { path = "../yt-core-proto", default-features = false }
+# the repository's copy here, the published one (crates.io, 1.21.0 on) for yt-core published
+yt-core-proto = { path = "../yt-core-proto", version = "1.21.0", default-features = false }
 tokio = { version = "^1.52", features = ["macros", "rt", "time", "sync"] }
 tonic = { version = "^0.14", features = ["transport"] }
 # its messages in one language, each error under its code (locales/, src/i18n.rs); the shared
