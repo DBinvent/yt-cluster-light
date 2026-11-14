@@ -50,7 +50,9 @@ jobs:
           postgresql-$PG postgresql-server-dev-$PG protobuf-c-compiler libprotobuf-c-dev libcurl4-openssl-dev
       - name: the extension, for the tests that run PostgreSQL
         run: |
-          make -C ytpgc PG_CONFIG="/usr/lib/postgresql/$PG/bin/pg_config"
+          # with_llvm=no: PGDG's PostgreSQL is built with LLVM, and PGXS would emit JIT bitcode
+          # with clang, which the runner has not (make: Error 127) - as Dockerfile.el9 builds
+          make -C ytpgc PG_CONFIG="/usr/lib/postgresql/$PG/bin/pg_config" with_llvm=no
           echo "YT_LIGHT_EXT_SO=$(ls "$PWD"/ytpgc/yt_cluster*-pg"$PG"-*.so)" >> "$GITHUB_ENV"
           echo "PG_BIN=/usr/lib/postgresql/$PG/bin" >> "$GITHUB_ENV"
       - run: cargo llvm-cov --workspace --no-fail-fast --ignore-filename-regex protogen --lcov --output-path lcov.info
