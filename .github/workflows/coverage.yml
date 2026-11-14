@@ -20,6 +20,8 @@ on:
 jobs:
   coverage:
     runs-on: ubuntu-24.04
+    env:
+      PG: "16"   # the PostgreSQL major the extension is built for and the tests run
     permissions:
       contents: write   # the coverage badge's push, to the badges branch
     defaults:
@@ -40,18 +42,17 @@ jobs:
           tool: cargo-llvm-cov
       # protoc for the protos, the OpenSSL headers for yt-light's TLS; PostgreSQL and its server
       # headers, and what the extension builds with, for the tests on a throwaway PostgreSQL.
-      # The runner's own PostgreSQL, whichever major it ships. On Ubuntu 24.04: 26.04's apt could
-      # not install its PostgreSQL 18 server headers beside protobuf (2026-11-14, two conflicting
-      # assignments), and ubuntu-latest is 26.04 now
+      # PostgreSQL 16 by name, its server and its headers from the one repository the runner
+      # takes them from: the image carries PGDG's postgresql-common, which Ubuntu's
+      # postgresql-server-dev-all refuses (2026-11-14). On Ubuntu 24.04: 26.04's apt could not
+      # install PostgreSQL 18's server headers beside protobuf, and ubuntu-latest is 26.04 now
       - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler libssl-dev
-          postgresql postgresql-server-dev-all protobuf-c-compiler libprotobuf-c-dev libcurl4-openssl-dev
+          postgresql-$PG postgresql-server-dev-$PG protobuf-c-compiler libprotobuf-c-dev libcurl4-openssl-dev
       - name: the extension, for the tests that run PostgreSQL
         run: |
-          pg="$(ls /usr/lib/postgresql | sort -V | tail -1)"
-          echo "PostgreSQL $pg"
-          make -C ytpgc PG_CONFIG="/usr/lib/postgresql/$pg/bin/pg_config"
-          echo "YT_LIGHT_EXT_SO=$(ls "$PWD"/ytpgc/yt_cluster*-pg"$pg"-*.so)" >> "$GITHUB_ENV"
-          echo "PG_BIN=/usr/lib/postgresql/$pg/bin" >> "$GITHUB_ENV"
+          make -C ytpgc PG_CONFIG="/usr/lib/postgresql/$PG/bin/pg_config"
+          echo "YT_LIGHT_EXT_SO=$(ls "$PWD"/ytpgc/yt_cluster*-pg"$PG"-*.so)" >> "$GITHUB_ENV"
+          echo "PG_BIN=/usr/lib/postgresql/$PG/bin" >> "$GITHUB_ENV"
       - run: cargo llvm-cov --workspace --no-fail-fast --ignore-filename-regex protogen --lcov --output-path lcov.info
       # [coverage] our own badge, no third party: lcov.info's line coverage, drawn by
       # .github/coverage-badge.py and kept on the `badges` branch - one commit, replaced
