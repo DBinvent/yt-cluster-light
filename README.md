@@ -27,6 +27,13 @@ the MIT license. It contains:
 built from it: [ytpgc/README.md](ytpgc/README.md#version) says what it names, and how a
 database that has an earlier version moves to it.
 
+## Is it true?
+
+[ai_confirm.md](ai_confirm.md) is the comparison table of [dbinvent.com](https://www.dbinvent.com/),
+cross-referenced: YT Cluster beside six other PostgreSQL clustering options, each statement with
+the page that states it and the sentence quoted from that page. Review it, then give the whole
+file to the AI you prefer. It is written from the site's table, so a change to it goes there.
+
 ## License
 
 MIT: see [LICENSE](LICENSE). [COPYRIGHT](COPYRIGHT) lists the copies of diff-doc-rs files
