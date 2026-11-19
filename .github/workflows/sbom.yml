@@ -1,0 +1,86 @@
+name: sbom
+
+# [sbom] The CycloneDX 1.5 SBOM of each project of this repository, kept on the `sbom` branch,
+# which SBOM.md lists (owner, 2026-11-17): every crate a binary links with its version, purl
+# and license (tools/sbom.py, from cargo metadata), and the extension's linked libraries as
+# Debian packages with theirs (tools/sbom-ytpgc.py). A project without a license stops the
+# run: a question of redistribution, for the owner. One commit on that branch, replaced each
+# time, as the coverage badge's. The yt-cluster deb ships the SBOM of each of its binaries
+# (yt-lite and the extension among them) in /usr/share/doc/yt-cluster/sbom/, and dbinvent.com
+# lists them by deb at /licenses.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Cargo.lock"
+      - "**/Cargo.toml"
+      - "yt-sqlite/Cargo.lock"
+      - "VERSION"
+      - "ytpgc/**"
+      - "tools/sbom.py"
+      - "tools/sbom-ytpgc.py"
+      - ".github/workflows/sbom.yml"
+  workflow_dispatch:
+
+# queued, not cancelled: a run is never stopped halfway through its push
+concurrency:
+  group: sbom
+  cancel-in-progress: false
+
+jobs:
+  sbom:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write   # the push to the sbom branch
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      # what the extension builds with, as coverage.yml installs it (PostgreSQL 16 by name;
+      # protoc and its C plugin, should the build make the proto code again)
+      - run: sudo apt-get update && sudo apt-get install -y protobuf-compiler postgresql-16
+          postgresql-server-dev-16 protobuf-c-compiler libprotobuf-c-dev libcurl4-openssl-dev
+      - name: the SBOMs
+        run: |
+          mkdir -p /tmp/sbom
+          # sbom <crate dir> <crate> <name> [sbom.py args]: /tmp/sbom/sbom-<name>.cdx.json
+          sbom() {
+            local dir="$1" package="$2" name="$3"; shift 3
+            python3 -I tools/sbom.py --online --dir "$dir" --package "$package" --name "$name" \
+              --out "/tmp/sbom/sbom-$name.cdx.json" "$@"
+          }
+          # in the yt-cluster deb: yt-lite (yt-core's binary, its default features, as the deb builds it)
+          sbom yt-core yt-core yt-lite
+          # ... and the extension: one build of it, PostgreSQL 16 on this runner - the deb's
+          # other builds link the same libraries. with_llvm=no: PGDG's PostgreSQL is built
+          # with LLVM, and the runner has no clang (coverage.yml)
+          make -C ytpgc PG_CONFIG=/usr/lib/postgresql/16/bin/pg_config with_llvm=no
+          libs=(ytpgc/yt_cluster*-pg16-*.so)
+          [ -e "${libs[0]}" ] || { echo "no extension built for PostgreSQL 16"; exit 1; }
+          python3 -I tools/sbom-ytpgc.py "${libs[0]}" VERSION 16 /tmp/sbom/sbom-ytpgc.cdx.json
+          # a feature away: the lite node inside an application, on Turso (yt-core's turso alone)
+          sbom yt-core yt-core yt-core-turso --no-default-features --features turso
+          # optional, in no deb: the protocol crate, the SQLite extension (for every target its
+          # releases build: Linux, macOS, Windows) and the Turso example load
+          sbom yt-core-proto yt-core-proto yt-core-proto
+          sbom yt-sqlite yt-sqlite yt-sqlite --target all
+          sbom yt-turso-load yt-turso-load yt-turso-load
+      - uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: /tmp/sbom/
+      # from the default branch only: run by hand on another, it makes them and keeps them as the
+      # run's artifact, and pushes nothing
+      - name: to the sbom branch
+        if: github.ref_name == github.event.repository.default_branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          cd /tmp/sbom
+          git init -q -b sbom
+          git add -A
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qm "SBOMs of ${SHA:0:12}"
+          git push -qf "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" sbom

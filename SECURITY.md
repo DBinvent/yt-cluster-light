@@ -30,4 +30,6 @@ you disclose the problem publicly.
 The crates' dependencies are pinned in `Cargo.lock`. On every push and weekly,
 `cargo audit` checks them against the RustSec advisory database and Trivy scans the
 repository (`.github/workflows/audit.yml`, `trivy.yml`); a finding accepted is listed in
-`.trivyignore` with why.
+`.trivyignore` with why. The software bill of materials of each project, CycloneDX, is listed
+in [SBOM.md](SBOM.md); every binary of the yt-cluster and sge debs, with its libraries and their
+licenses, at [dbinvent.com/licenses](https://dbinvent.com/licenses).

@@ -22,7 +22,11 @@ FROM alpine:${ALPINE_TAG}
 ARG PG_MAJOR
 
 # ── Build tools + PostgreSQL dev headers (from Alpine standard repos) ─────────
-RUN apk add --no-cache \
+# [pg-refresh] the day the packages were installed (build-all-ytpgc.sh passes today's, UTC): a new
+# day installs them again, so a cached layer never keeps an old minor or a pre-release - its
+# 19rc2 stood in a layer from 2026-11-14 after 19.0 came out (owner, 2026-11-19: "use 19")
+ARG PG_PACKAGES_ON=unset
+RUN echo "packages of ${PG_PACKAGES_ON}" && apk add --no-cache \
         build-base \
         curl \
         curl-dev \

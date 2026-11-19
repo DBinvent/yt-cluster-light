@@ -4,6 +4,7 @@
 [![trivy](https://github.com/DBinvent/yt-cluster-lite/actions/workflows/trivy.yml/badge.svg)](https://github.com/DBinvent/yt-cluster-lite/actions/workflows/trivy.yml)
 [![coverage](https://raw.githubusercontent.com/DBinvent/yt-cluster-lite/badges/coverage.svg?sanitize=true)](https://github.com/DBinvent/yt-cluster-lite/actions/workflows/coverage.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![license: sbom](https://img.shields.io/badge/license-sbom-blue.svg)](SBOM.md)
 
 YT Cluster lite is the open part of [YT Cluster](https://www.dbinvent.com/cluster/), under
 the MIT license. It contains:

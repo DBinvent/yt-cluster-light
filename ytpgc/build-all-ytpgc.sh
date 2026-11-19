@@ -21,6 +21,8 @@
 # version left in dist/ is removed: the packages take every yt_cluster*.so there, and
 # two versions of the library for one PostgreSQL are one too many.
 set -euo pipefail
+# [pg-refresh] today's packages in each build image (the Dockerfiles' PG_PACKAGES_ON)
+PG_PACKAGES_ON="$(date -u +%F)"
 # The images build on the daemon DOCKER_HOST names, this host's own when it is unset
 # (ssh://<host> for another box's); the artifacts come back here either way.
 
@@ -124,6 +126,7 @@ for PG_MAJOR in "${VERSIONS[@]}"; do
     elif docker build \
             -f "$SCRIPT_DIR/Dockerfile" \
             --build-arg PG_MAJOR="${PG_MAJOR}" \
+                --build-arg PG_PACKAGES_ON="$PG_PACKAGES_ON" \
             --build-arg BASE_IMAGE="${BASE_IMAGE}" \
             -t "$IMAGE" \
             "$REPO_ROOT"; then
@@ -157,6 +160,7 @@ for PG_MAJOR in "${VERSIONS[@]}"; do
         elif docker build \
                 -f "$SCRIPT_DIR/Dockerfile.el9" \
                 --build-arg PG_MAJOR="${PG_MAJOR}" \
+                --build-arg PG_PACKAGES_ON="$PG_PACKAGES_ON" \
                 -t "$EL9_IMAGE" \
                 "$REPO_ROOT"; then
 
@@ -185,6 +189,7 @@ for PG_MAJOR in "${VERSIONS[@]}"; do
         elif docker build \
                 -f "$SCRIPT_DIR/Dockerfile.musl" \
                 --build-arg PG_MAJOR="${PG_MAJOR}" \
+                --build-arg PG_PACKAGES_ON="$PG_PACKAGES_ON" \
                 --build-arg ALPINE_TAG="${ALPINE_TAG}" \
                 -t "$MUSL_IMAGE" \
                 "$REPO_ROOT"; then

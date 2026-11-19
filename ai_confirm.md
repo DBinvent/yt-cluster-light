@@ -1,7 +1,7 @@
 # Is it true? The comparison table of dbinvent.com, cross-referenced
 
 The comparison table on https://www.dbinvent.com/ ("Why not the thing you already tried"): for seven PostgreSQL
-clustering options and 16 capabilities, 112 statements, as of November 2026. Each one comes
+clustering options and 16 capabilities, and its hybrid table below it, 137 statements in all, as of November 2026. Each one comes
 with the page that states it and the sentence quoted from that page: YT Cluster as DBinvent states
 and explains it on dbinvent.com, every other project as its own documentation states it, and
 third-party sources where there are some. It cross-references what each project documents - and
@@ -25,7 +25,7 @@ feature, or its overview, which shows what the project does instead.
 
 ## The capabilities
 
-1. 2PC - two-phase commit
+1. Smart 2PC - a participant node that fails does not ruin cluster writes
 2. Core component open source (MIT)
 3. Every node accepts writes
 4. Keeps writing when a node fails
@@ -51,15 +51,13 @@ DBinvent's PostgreSQL cluster - as DBinvent states and explains it on dbinvent.c
 #### A1
 
 - Project: YT Cluster
-- Capability: 2PC - two-phase commit
+- Capability: Smart 2PC - a participant node that fails does not ruin cluster writes
 - Mark: Yes
-- Note: on the nodes each table's rule names; none at nodes=0
+- Note: the party is chosen among the nodes up: a failed node is left out and catches up when back; one that fails inside a transaction rolls back that one only
+- Source: https://www.dbinvent.com/cluster/guide/docker
+  Quote: "A node going down stops nothing: the others go on taking writes, and it catches up when it is back."
 - Source: https://www.dbinvent.com/cluster/guide/configuration#failover-settings
   Quote: "YT Cluster allows user to specify how many cluster nodes must synchronously repeat the transaction before it is considered successful."
-- Source: https://www.dbinvent.com/
-  Quote: "The write does not return until two-phase commit has it durable on that many - so redundancy is a decision you make per table, not a property of the topology you deployed."
-- Source: https://www.dbinvent.com/
-  Quote: "In this case the commit rule is nodes=0, wal=half, without two-phase commit (no XA transaction): the commit waits for its WAL flushed on half the nodes and for no other node's database (safe with one data source: one node writes the table)"
 
 #### A2
 
@@ -69,6 +67,8 @@ DBinvent's PostgreSQL cluster - as DBinvent states and explains it on dbinvent.c
 - Note: the node's core, yt-lite: the protocol, the PostgreSQL extension, the link code and the lite node; the cluster's own server is not
 - Source: https://www.dbinvent.com/cluster/
   Quote: "Open source node - yt-lite, the open-source version of the cluster node, under the MIT license: a YT node for one database, linked to a YT Cluster above it."
+- Source: https://www.dbinvent.com/cluster/guide/licensing#open-core
+  Quote: "The core of YT Cluster - the PostgreSQL extension, the protocol and yt-lite, the node for one database - is open source under the MIT license."
 - Source: https://www.dbinvent.com/cluster/articles/rethinking-client-server
   Quote: "The YT Cluster project itself has run for 6 years, and its core is open source now, to give a better experience through embedded solutions."
 - Source: https://www.dbinvent.com/cluster/articles/rethinking-client-server
@@ -154,7 +154,7 @@ DBinvent's PostgreSQL cluster - as DBinvent states and explains it on dbinvent.c
 - Project: YT Cluster
 - Capability: MPP analytics on the same data
 - Mark: Yes
-- Note: DataFusion
+- Note: DataFusion beside each node, given the data layout by ytserv; tested in public
 - Source: https://www.dbinvent.com/cluster/guide/architecture#mpp
   Quote: "Analytical queries are planned and executed by Apache DataFusion across the declared topology, reaching tables already marked for cluster synchronization without copying them anywhere first."
 
@@ -227,11 +227,11 @@ Plain PostgreSQL with streaming replication, Patroni as its high-availability ma
 #### B1
 
 - Project: Patroni + etcd
-- Capability: 2PC - two-phase commit
+- Capability: Smart 2PC - a participant node that fails does not ruin cluster writes
 - Mark: Partly
-- Note: PREPARE TRANSACTION; one primary, nothing to coordinate
-- Source: https://www.postgresql.org/docs/current/sql-prepare-transaction.html
-  Quote: "PREPARE TRANSACTION is not intended for use in applications or interactive sessions."
+- Note: one primary: a failed synchronous standby blocks commits until Patroni goes standalone - in strict mode until one is back
+- Source: https://patroni.readthedocs.io/en/latest/replication_modes.html
+  Quote: "commits will block until next iteration of Patroni runs and switches the primary to standalone mode."
 
 #### B2
 
@@ -392,15 +392,13 @@ Cockroach Labs' distributed SQL database, PostgreSQL wire-compatible - as its do
 #### C1
 
 - Project: CockroachDB
-- Capability: 2PC - two-phase commit
-- Mark: Partly
-- Note: Parallel Commits, its own atomic commit across nodes, in place of two-phase commit
-- Source: https://docs.cockroachlabs.com/docs/stable/architecture/transaction-layer
-  Quote: "a distributed, atomic commit protocol called Parallel Commits"
-- Source: https://docs.cockroachlabs.com/docs/stable/architecture/transaction-layer
-  Quote: "Parallel Commits is an optimized atomic commit protocol that cuts the commit latency of a transaction in half"
+- Capability: Smart 2PC - a participant node that fails does not ruin cluster writes
+- Mark: No
+- Note: no two-phase commit: dropped for its own Parallel Commits; consensus per range lets a minority of replicas fail
 - Source: https://www.cockroachlabs.com/blog/parallel-commits/
   Quote: "we had to throw away two-phase commit and rework how transactions in CockroachDB arrive at a committed state."
+- Source: https://docs.cockroachlabs.com/docs/stable/architecture/replication-layer
+  Quote: "For example, with 3x replication, one failure can be tolerated; with 5x replication, two failures, and so on."
 
 #### C2
 
@@ -443,9 +441,13 @@ Cockroach Labs' distributed SQL database, PostgreSQL wire-compatible - as its do
 - Project: CockroachDB
 - Capability: Consistency chosen per table
 - Mark: Partly
-- Note: replicas per table, always a majority
+- Note: a commit waits for a quorum of the table's own replication factor; one isolation level for all
 - Source: https://docs.cockroachlabs.com/docs/stable/configure-replication-zones
-  Quote: "table X's data can only be stored in the German availability zones"
+  Quote: "You can add replication zones for specific tables."
+- Source: https://docs.cockroachlabs.com/docs/stable/configure-replication-zones
+  Quote: "The number of replicas in the zone, also called the "replication factor"."
+- Source: https://docs.cockroachlabs.com/docs/stable/architecture/replication-layer
+  Quote: "require that a quorum of replicas agrees on any changes to a range before those changes are committed"
 
 #### C7
 
@@ -551,18 +553,18 @@ The MPP data warehouse (Broadcom), built on PostgreSQL; its source closed in May
 #### D1
 
 - Project: Greenplum
-- Capability: 2PC - two-phase commit
-- Mark: Yes
-- Note: coordinator and segments
-- Source: https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum/7/greenplum-database/admin_guide-intro-about_mvcc.html
-  Quote: "The coordinator coordinates distributed transactions across all of the segment with the two-phase commit protocol"
+- Capability: Smart 2PC - a participant node that fails does not ruin cluster writes
+- Mark: Partly
+- Note: a segment that fails rolls back the transactions in progress; its mirror takes the next ones
+- Source: https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum/7/greenplum-database/admin_guide-highavail-topics-g-overview-of-segment-mirroring.html
+  Quote: "Transactions in progress when the failure occurred roll back and must be restarted."
 
 #### D2
 
 - Project: Greenplum
 - Capability: Core component open source (MIT)
 - Mark: No
-- Note: closed since May 2024; the archive of its last open version is Apache 2.0
+- Note: none kept in the open: its repository archived, read-only since May 2024 (that last version Apache 2.0)
 - Source: https://github.com/greenplum-db/gpdb-archive
   Quote: "This repository was archived by the owner on May 24, 2024."
 - Source: https://github.com/greenplum-db/gpdb-archive
@@ -609,9 +611,11 @@ The MPP data warehouse (Broadcom), built on PostgreSQL; its source closed in May
 - Project: Greenplum
 - Capability: Unmodified PostgreSQL engine
 - Mark: No
-- Note: a fork of an older PostgreSQL
-- Source: https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum/7/greenplum-database/ref_guide-feature_summary.html
-  Quote: "Greenplum Database is based on PostgreSQL 9.4"
+- Note: PostgreSQL 12 with its internals modified
+- Source: https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum/7/greenplum-database/admin_guide-intro-arch_overview.html
+  Quote: "It is based on PostgreSQL 12, and in most cases is very similar to PostgreSQL with regard to SQL support"
+- Source: https://techdocs.broadcom.com/us/en/vmware-tanzu/data-solutions/tanzu-greenplum/7/greenplum-database/admin_guide-intro-arch_overview.html
+  Quote: "The internals of PostgreSQL have been modified or supplemented to support the parallel structure of Greenplum Database."
 
 #### D8
 
@@ -708,11 +712,11 @@ The open-source PostgreSQL proxy with sharding and connection pooling - as its d
 #### E1
 
 - Project: PgDog
-- Capability: 2PC - two-phase commit
-- Mark: Yes
-- Note: cross-shard writes, when switched on
+- Capability: Smart 2PC - a participant node that fails does not ruin cluster writes
+- Mark: No
+- Note: an error in phase 1 rolls the cross-shard write back; each shard is one primary
 - Source: https://docs.pgdog.dev/features/sharding/2pc/
-  Quote: "Two-phase commit takes advantage of prepared transactions in Postgres to provide eventually consistent cross-shard writes."
+  Quote: "If an error happens before or during phase 1, the transaction will be rolled back automatically."
 
 #### E2
 
@@ -864,13 +868,11 @@ The open-source PostgreSQL extension for distributed tables, self-hosted - as it
 #### F1
 
 - Project: Citus
-- Capability: 2PC - two-phase commit
-- Mark: Yes
-- Note: multi-shard writes
-- Source: https://www.citusdata.com/blog/2017/11/22/how-citus-executes-distributed-transactions/
-  Quote: "the Citus coordinator initiates the 2PC protocol"
-- Source: https://docs.citusdata.com/en/stable/develop/api_guc.html
-  Quote: "When using 2pc, max_prepared_transactions should be increased on all the workers"
+- Capability: Smart 2PC - a participant node that fails does not ruin cluster writes
+- Mark: No
+- Note: a worker is one primary for its shards: their writes fail until its standby is promoted
+- Source: https://docs.citusdata.com/en/stable/admin_guide/cluster_management.html
+  Quote: "Citus uses PostgreSQL streaming replication, allowing it to tolerate worker-node failures."
 
 #### F2
 
@@ -1018,11 +1020,11 @@ Single-primary managed PostgreSQL services such as Amazon RDS for PostgreSQL, Am
 #### G1
 
 - Project: Managed cloud Postgres
-- Capability: 2PC - two-phase commit
+- Capability: Smart 2PC - a participant node that fails does not ruin cluster writes
 - Mark: Partly
-- Note: PREPARE TRANSACTION, where the provider enables it
-- Source: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Appendix.PostgreSQL.CommonDBATasks.Autovacuum_Monitoring.Resolving_Identifiableblockers.html
-  Quote: "These are enabled by setting the max_prepared_transactions parameter to a non-zero value."
+- Note: one primary: a failed standby or primary is a failover, the transactions in flight lost
+- Source: https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.MultiAZSingleStandby.html
+  Quote: "In a Multi-AZ DB instance deployment, Amazon RDS automatically provisions and maintains a synchronous standby replica in a different Availability Zone."
 
 #### G2
 
@@ -1166,6 +1168,253 @@ Third-party sources on Managed cloud Postgres:
 - Source: https://thebuild.com/blog/managed-postgres-examined-amazon-rds-for-postgresql/
   Quote: "You do not get PostgreSQL SUPERUSER."
 
+## The hybrid table, by project
+
+The second table on the same page ("Hybrid: PostgreSQL with MySQL and embedded SQLite"): 5
+capabilities of putting the data in an application's SQLite or beside MySQL, for 5 projects,
+numbered H, the project's letter and the capability (such as HB2).
+
+### HA. YT Cluster
+
+#### HA1
+
+- Project: YT Cluster
+- Capability: Embedded SQLite in the application, synced with PostgreSQL
+- Mark: Yes
+- Note: the lite node: a SQLite extension, or inside an application on Turso
+- Source: https://www.dbinvent.com/cluster/articles/rethinking-client-server
+  Quote: "A commit returns at the speed of the local database, and the sync runs behind it: a thread in the SQLite extension, a task on the application's runtime with Turso, a service beside PostgreSQL."
+- Source: https://github.com/DBinvent/yt-cluster-lite
+  Quote: "The lite node as a SQLite loadable extension, `yt`: a SQLite database file linked to a cluster, its tables synced both ways."
+
+#### HA2
+
+- Project: YT Cluster
+- Capability: The embedded side writes, and its rows go up
+- Mark: Yes
+- Note: a commit is local, the link carries it up
+- Source: https://www.dbinvent.com/cluster/articles/rethinking-client-server
+  Quote: "On a lite node a commit is local: the speed of the local database, no round trip, and the row is on that device alone until the link has carried it up."
+
+#### HA3
+
+- Project: YT Cluster
+- Capability: MySQL in the same system
+- Mark: Soon
+- Note: through yt-lite
+- Source: https://github.com/DBinvent/yt-cluster-lite
+  Quote: "The link code, the lite node, and `yt-lite`, the lite node as a service beside one PostgreSQL instance; with the `turso` feature, the lite node inside an application on Turso."
+
+#### HA4
+
+- Project: YT Cluster
+- Capability: One schema deployed to PostgreSQL, MySQL and SQLite
+- Mark: Yes
+- Note: sge, sge-mysql, sge-sqlite: mapped for each
+- Source: https://github.com/DBinvent/sge
+  Quote: "sge's core for SQLite (embedded, through turso) and for MySQL (through sqlx), a binary each."
+
+#### HA5
+
+- Project: YT Cluster
+- Capability: Nothing between the application and your database servers
+- Mark: Yes
+- Note: the lite node links to your cluster
+- Source: https://www.dbinvent.com/cluster/articles/your-data-your-hardware
+  Quote: "For production we recommend your own hardware: not Docker, not Kubernetes, not a virtual machine."
+- Source: https://github.com/DBinvent/yt-cluster-lite
+  Quote: "The lite node as a SQLite loadable extension, `yt`: a SQLite database file linked to a cluster, its tables synced both ways."
+
+### HB. ElectricSQL
+
+#### HB1
+
+- Project: ElectricSQL
+- Capability: Embedded SQLite in the application, synced with PostgreSQL
+- Mark: Partly
+- Note: reads only: shapes into the app
+- Source: https://electric.ax/docs/guides/writes
+  Quote: "Electric does not do write-path sync. It doesn't provide (or prescribe) a built-in solution for getting data back into Postgres from local apps and services."
+
+#### HB2
+
+- Project: ElectricSQL
+- Capability: The embedded side writes, and its rows go up
+- Mark: No
+- Note: no write-path sync: your API
+- Source: https://electric.ax/docs/guides/writes
+  Quote: "Electric does not do write-path sync. It doesn't provide (or prescribe) a built-in solution for getting data back into Postgres from local apps and services."
+
+#### HB3
+
+- Project: ElectricSQL
+- Capability: MySQL in the same system
+- Mark: No
+- Note: (none)
+- Source: https://electric.ax/docs/guides/writes
+  Quote: "Electric does not do write-path sync. It doesn't provide (or prescribe) a built-in solution for getting data back into Postgres from local apps and services."
+
+#### HB4
+
+- Project: ElectricSQL
+- Capability: One schema deployed to PostgreSQL, MySQL and SQLite
+- Mark: No
+- Note: (none)
+- Source: https://electric.ax/docs/guides/writes
+  Quote: "Electric does not do write-path sync. It doesn't provide (or prescribe) a built-in solution for getting data back into Postgres from local apps and services."
+
+#### HB5
+
+- Project: ElectricSQL
+- Capability: Nothing between the application and your database servers
+- Mark: Partly
+- Note: the Electric sync service, self-hosted or cloud
+- Source: https://electric.ax/docs/guides/deployment
+  Quote: "You can deploy it anywhere you can run a container with a filesystem and exposed HTTP port."
+- Source: https://electric.ax/docs/guides/deployment
+  Quote: "The simplest way to use Electric is via the Electric Cloud"
+
+### HC. PowerSync
+
+#### HC1
+
+- Project: PowerSync
+- Capability: Embedded SQLite in the application, synced with PostgreSQL
+- Mark: Yes
+- Note: in-app SQLite
+- Source: https://docs.powersync.com/intro/powersync-overview
+  Quote: "PowerSync keeps in-app SQLite synced with your backend so apps update across users and devices in real time."
+
+#### HC2
+
+- Project: PowerSync
+- Capability: The embedded side writes, and its rows go up
+- Mark: Partly
+- Note: queued and sent to your write endpoint
+- Source: https://docs.powersync.com/client-sdk-references/javascript-web
+  Quote: "The SDK queues local writes and calls this method to send them to your write endpoint"
+
+#### HC3
+
+- Project: PowerSync
+- Capability: MySQL in the same system
+- Mark: Partly
+- Note: MySQL as a source, in beta
+- Source: https://docs.powersync.com/intro/powersync-overview
+  Quote: "PowerSync is designed to be backend database agnostic, and supports these source databases:"
+
+#### HC4
+
+- Project: PowerSync
+- Capability: One schema deployed to PostgreSQL, MySQL and SQLite
+- Mark: No
+- Note: (none)
+- Source: https://docs.powersync.com/intro/powersync-overview
+  Quote: "PowerSync is designed to be backend database agnostic, and supports these source databases:"
+
+#### HC5
+
+- Project: PowerSync
+- Capability: Nothing between the application and your database servers
+- Mark: Partly
+- Note: the PowerSync Service, self-hosted or cloud
+- Source: https://docs.powersync.com/self-hosting/getting-started
+  Quote: "The PowerSync Service can be self-hosted using Docker."
+
+### HD. Turso
+
+#### HD1
+
+- Project: Turso
+- Capability: Embedded SQLite in the application, synced with PostgreSQL
+- Mark: Partly
+- Note: a read replica of Turso's own database, not of PostgreSQL
+- Source: https://docs.turso.tech/features/embedded-replicas/introduction
+  Quote: "Embedded Replicas keep a local read replica of a Turso Cloud database."
+
+#### HD2
+
+- Project: Turso
+- Capability: The embedded side writes, and its rows go up
+- Mark: Partly
+- Note: writes go to the remote primary
+- Source: https://docs.turso.tech/features/embedded-replicas/introduction
+  Quote: "Writes are sent to the remote primary database"
+
+#### HD3
+
+- Project: Turso
+- Capability: MySQL in the same system
+- Mark: No
+- Note: (none)
+- Source: https://docs.turso.tech/features/embedded-replicas/introduction
+  Quote: "Embedded Replicas keep a local read replica of a Turso Cloud database."
+
+#### HD4
+
+- Project: Turso
+- Capability: One schema deployed to PostgreSQL, MySQL and SQLite
+- Mark: No
+- Note: (none)
+- Source: https://docs.turso.tech/features/embedded-replicas/introduction
+  Quote: "Embedded Replicas keep a local read replica of a Turso Cloud database."
+
+#### HD5
+
+- Project: Turso
+- Capability: Nothing between the application and your database servers
+- Mark: No
+- Note: Turso Cloud
+- Source: https://docs.turso.tech/features/embedded-replicas/introduction
+  Quote: "Embedded Replicas keep a local read replica of a Turso Cloud database."
+
+### HE. Debezium
+
+#### HE1
+
+- Project: Debezium
+- Capability: Embedded SQLite in the application, synced with PostgreSQL
+- Mark: No
+- Note: change events to Kafka
+- Source: https://debezium.io/documentation/reference/stable/connectors/mysql.html
+  Quote: "Client applications read those Kafka topics."
+
+#### HE2
+
+- Project: Debezium
+- Capability: The embedded side writes, and its rows go up
+- Mark: No
+- Note: (none)
+- Source: https://debezium.io/documentation/reference/stable/connectors/mysql.html
+  Quote: "Client applications read those Kafka topics."
+
+#### HE3
+
+- Project: Debezium
+- Capability: MySQL in the same system
+- Mark: Partly
+- Note: its changes read, one way
+- Source: https://debezium.io/documentation/reference/stable/connectors/mysql.html
+  Quote: "The Debezium MySQL connector reads the binlog, produces change events for row-level"
+
+#### HE4
+
+- Project: Debezium
+- Capability: One schema deployed to PostgreSQL, MySQL and SQLite
+- Mark: No
+- Note: (none)
+- Source: https://debezium.io/documentation/reference/stable/connectors/mysql.html
+  Quote: "Client applications read those Kafka topics."
+
+#### HE5
+
+- Project: Debezium
+- Capability: Nothing between the application and your database servers
+- Mark: Partly
+- Note: Kafka Connect
+- Source: https://debezium.io/documentation/reference/stable/connectors/mysql.html
+  Quote: "Client applications read those Kafka topics."
+
 ## Rules
 
 - Do not make assumptions. Judge each statement only by its quoted sentences, its cited pages and
@@ -1176,7 +1425,8 @@ Third-party sources on Managed cloud Postgres:
   to do next.
 - The marks: **Yes** - the project has the capability, built in. **No** - it does not have it built
   in. **Partly** - neither fully true nor fully false: the project has it in part, or only with
-  more tooling or setup, so the mark admits uncertainty. A "Partly" is not wrong because the
+  more tooling or setup, so the mark admits uncertainty. **Soon** - announced by its project and
+  not built in yet: right when the project does not claim it as available. A "Partly" is not wrong because the
   capability exists in some form, nor because it is missing in some form.
 - The note is a hint: do not count a statement wrong for what its note leaves out.
 - A "No" is judged by absence. Its source is the project's page for the closest feature, or its

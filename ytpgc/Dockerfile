@@ -37,7 +37,11 @@ https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
 # A major PGDG has not released yet - its betas and release candidates - is in a
 # component of its own, named by the major, not in `main`. It is added only when `main`
 # has no server-dev package for this major: a released one is always built from `main`.
-RUN apt-get update \
+# [pg-refresh] the day the packages were installed (build-all-ytpgc.sh passes today's, UTC): a new
+# day installs them again, so a cached layer never keeps an old minor or a pre-release - its
+# 19rc2 stood in a layer from 2026-11-14 after 19.0 came out (owner, 2026-11-19: "use 19")
+ARG PG_PACKAGES_ON=unset
+RUN echo "packages of ${PG_PACKAGES_ON}" && apt-get update \
     && if ! apt-cache show "postgresql-server-dev-${PG_MAJOR}" >/dev/null 2>&1; then \
            echo "PostgreSQL ${PG_MAJOR} is not in PGDG's main yet: built from its pre-release component, ${PG_MAJOR}" \
            && sed -i "s/-pgdg main\$/-pgdg main ${PG_MAJOR}/" /etc/apt/sources.list.d/pgdg.list \
