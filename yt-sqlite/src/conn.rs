@@ -69,3 +69,26 @@ impl Conn for Sqlite {
 		})
 	}
 }
+
+/// [migrate] the connection as schema_guard_tokio's SQLite engine reads and deploys through it
+impl schema_guard_tokio::sqlite::SqliteDb for Sqlite {
+	async fn rows(&self, sql: &str) -> Result<Vec<Vec<schema_guard_tokio::sqlite::Value>>, String> {
+		use schema_guard_tokio::sqlite::Value as V;
+		let rows = Conn::rows(self, sql, vec![]).await?;
+		Ok(rows.into_iter().map(|r| r.into_iter().map(|v| match v {
+			Val::Null => V::Null,
+			Val::Integer(i) => V::Integer(i),
+			Val::Real(f) => V::Real(f),
+			Val::Text(t) => V::Text(t),
+			Val::Blob(b) => V::Blob(b),
+		}).collect()).collect())
+	}
+
+	async fn batch(&self, sql: &str) -> Result<(), String> {
+		Conn::batch(self, sql).await
+	}
+
+	fn autocommit(&self) -> Result<bool, String> {
+		Ok(self.0.lock().unwrap_or_else(|e| e.into_inner()).is_autocommit())
+	}
+}

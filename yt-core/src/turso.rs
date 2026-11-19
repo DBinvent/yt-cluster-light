@@ -84,6 +84,18 @@ impl Lite<Connection> {
 	}
 }
 
+/// [migrate] the Turso form's database for a migration: SQLite 3, deployed by schema_guard_tokio
+#[tonic::async_trait]
+impl crate::migrate::Target for Lite<Connection> {
+	async fn source(&self) -> Result<schema_guard_tokio::mapping::Source, String> {
+		schema_guard_tokio::mapping::Source::parse("sqlite.3")
+	}
+	async fn deploy(&self, y: yaml_rust2::Yaml, file: &str) -> Result<Vec<String>, String> {
+		let c = self.conn().await;
+		schema_guard_tokio::sqlite::migrate(y, &*c, false, file, &Default::default()).await.map(|p| p.statements)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -450,5 +462,74 @@ mod tests {
 		assert_eq!(q(&app, "SELECT count(*) FROM yt_config WHERE module = 'A'").await, vec![vec![Value::Integer(1)]]);
 		drop(app);
 		let _ = std::fs::remove_file(&path);
+	}
+
+	/// [migrate] a directory of the cluster's schemas deployed here (mapped for SQLite) and its
+	/// tables synced: a row written here goes up with the cluster's types (from `yt_columns`), a
+	/// second run changes nothing, a versioned script changed after it ran is refused
+	#[tokio::test]
+	async fn a_migration_deploys_the_clusters_schema_and_syncs_its_tables() {
+		let (db, path) = db().await;
+		let dir = path.with_extension("dir");
+		std::fs::create_dir_all(&dir).unwrap();
+		std::fs::write(dir.join("S1__accounts.yaml"), "database:
+  - schemaName: s_app
+    tables:
+      - table:
+          tableName: accounts
+          columns:
+            - column:
+                name: id
+                type: bigserial
+                constraint:
+                  primaryKey: true
+            - column:
+                name: name
+                type: varchar(80)
+            - column:
+                name: at
+                type: timestamptz
+                defaultValue: now()
+      - table:
+          tableName: notes
+          columns:
+            - column:
+                name: line
+                type: text
+").unwrap();
+		std::fs::write(dir.join("V1_1__seed.sql"), "INSERT INTO \"s_app.accounts\" (id, name, at) VALUES (1, 'seed', '2026-11-19 10:00:00+00');").unwrap();
+		let s = Turso::open(&db, "appdb").await.unwrap();
+		let r = s.migrate_dir(&s, &dir).await.unwrap();
+		assert_eq!(r.ran.iter().map(|x| x.0.as_str()).collect::<Vec<_>>(), ["S1__accounts.yaml", "V1_1__seed.sql"]);
+		assert_eq!(r.synced, ["s_app.accounts"]);
+		assert!(r.notes.iter().any(|n| n.contains("s_app.notes: no primary key")), "{:?}", r.notes);
+		// the seed ran before the triggers were made: not captured; a row written now is
+		let app = db.connect().unwrap();
+		app.execute("INSERT INTO \"s_app.accounts\" (id, name, at) VALUES (2, 'b', '2026-11-19 11:00:00+00')", ()).await.unwrap();
+		let (items, _, _) = s.collect(None, 10).await.unwrap();
+		assert_eq!(items.len(), 1, "{:?}", items);
+		let row = &items[0].data[0];
+		let t = row.table.as_ref().unwrap();
+		assert_eq!((t.schema.as_str(), t.table.as_str()), ("s_app", "accounts"));
+		let ty = |n: &str| t.columns.iter().find(|c| c.name == n).unwrap().atttypid;
+		assert_eq!((ty("id"), ty("name"), ty("at")), (20, 1043, 1184), "the cluster's types, not SQLite's");
+		// the second run: nothing
+		let again = s.migrate_dir(&s, &dir).await.unwrap();
+		assert!(again.ran.is_empty() && again.synced.is_empty(), "{:?}", again);
+		std::fs::write(dir.join("V1_1__seed.sql"), "SELECT 1;").unwrap();
+		assert!(s.migrate_dir(&s, &dir).await.unwrap_err().contains("changed after it ran"));
+		drop(app);
+		let _ = std::fs::remove_dir_all(&dir);
+		let _ = std::fs::remove_file(&path);
+	}
+
+	#[test]
+	fn a_files_md5_is_sges() {
+		// RFC 1321's own examples
+		let hex = |b: &[u8]| { use base64::Engine; base64::engine::general_purpose::STANDARD.decode(crate::migrate::checksum(b)).unwrap()
+			.iter().map(|x| format!("{:02x}", x)).collect::<String>() };
+		assert_eq!(hex(b""), "d41d8cd98f00b204e9800998ecf8427e");
+		assert_eq!(hex(b"abc"), "900150983cd24fb0d6963f7d28e17f72");
+		assert_eq!(hex(b"12345678901234567890123456789012345678901234567890123456789012345678901234567890"), "57edf4a22be3c955ac49da2e2107b67a");
 	}
 }

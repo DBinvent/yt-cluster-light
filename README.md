@@ -22,6 +22,7 @@ the MIT license. It contains:
 | [`ytpgc/`](ytpgc/README.md) | `yt_cluster`, the PostgreSQL extension, in C. It captures the rows each transaction writes and hands them to the YT node beside the database over a unix socket. Its builds for each supported PostgreSQL version are here too. | the version and updating a database to it, building, tests, behaviour notes |
 | [`yt-core/`](yt-core/README.md) | The link code, the lite node, and `yt-lite`, the lite node as a service beside one PostgreSQL instance; with the `turso` feature, the lite node inside an application on Turso. | yt-lite's settings, linking it to a cluster, which tables it takes, `yt_info()`, limits, the Turso form, the link code, tests |
 | [`yt-sqlite/`](yt-sqlite/README.md) | The lite node as a SQLite loadable extension, `yt`: a SQLite database file linked to a cluster, its tables synced both ways. Installed with sqlpkg (`sqlpkg.json`) or from a release asset. | its functions, settings, linking, limits, building, tests |
+| (yt-core, feature `mysql`) | The lite node beside one MySQL database, `yt-lite-mysql`: its rows captured by triggers, what comes down applied there, the schema migrated from the cluster's PostgreSQL first. | yt-core's README, "Beside MySQL" |
 | `yt-turso-load/` | An application on Turso with the lite node inside it, and a load like pgbench's: the example of the Turso form, and the leaf the end-to-end tests run. | its header (`src/main.rs`) |
 
 `VERSION`, at the root, is YT lite's version, in step with YT Cluster's. The extension is

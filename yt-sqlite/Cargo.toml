@@ -23,7 +23,11 @@ name = "yt"
 crate-type = ["cdylib"]
 
 [dependencies]
-yt-core = { path = "../yt-core", default-features = false, features = ["tls", "lite"] }
+yt-core = { path = "../yt-core", default-features = false, features = ["tls", "lite", "lite-migrate"] }
+# [migrate] yt_migrate(dir): sge's schemas deployed on this connection (schema_guard_tokio's SQLite
+# engine, sqlite::SqliteDb), then synced
+schema_guard_tokio = { version = "^2.4.2", default-features = false, features = ["sqlite-core"] }
+yaml-rust2 = { version = "^0.13", default-features = false }
 yt-core-proto = { path = "../yt-core-proto", default-features = false }
 # ~0.40: its libsqlite3-sys (0.38) takes a host SQLite from 3.34.1 on - RHEL 9, Debian 11,
 # Ubuntu 22.04, macOS. 0.41 on want 3.45.3: Ubuntu 24.04's 3.45.1 refused the extension

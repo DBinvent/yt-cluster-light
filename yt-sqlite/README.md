@@ -47,6 +47,7 @@ c.load_extension("./yt")
 | `yt_unsync(table)` | Stops syncing a table: its A row and its triggers are removed. |
 | `yt_link()`, `yt_link(upper, upper_root)` | Links the database file to the cluster above, from its settings. The two given are written to the settings first, and a link already running is made again with them. It returns the node's CA fingerprint, for the cluster's operator to approve. Not inside a transaction (YT-E084): a rollback would take the settings and the node's uuid while the link runs. |
 | `yt_unlink()` | Stops the link of this database file, once its turn ends: the call waits up to a second. It returns false when the file was not linked. |
+| `yt_migrate(dir)` | Deploys a directory of sge's files here - `S<version>__name.yaml` schemas (the cluster's PostgreSQL ones, mapped for SQLite, each column's PostgreSQL type kept in `yt_columns`), `V<version>__name.sql` scripts once, `R__name.sql` again when changed, each kept in `yt_migrations` - then sets up each table they name with a primary key as `yt_setup` does. Says what it did, one line a file; empty when nothing changed. Run it again after a schema change. |
 | `yt_info()` | Where the link is, as JSON: `linked`, `granted`, `tls`, `caught_up`, `waiting` (rows not yet passed by the cluster), `problem`, the counts of rows not held or not synced, the last batch from above that failed (`apply_error`) and the link's last messages (`said`). |
 
 The functions can be called only from SQL you run yourself, not from a trigger or a view.
@@ -97,7 +98,7 @@ the application's connection too.
 
 As in the Turso form:
 
-- A schema change is followed only by `yt_setup` again.
+- A schema change is followed by `yt_migrate` again, or by `yt_setup` again.
 - `INSERT OR REPLACE` of a row that is there goes up as an insert, which the cluster refuses
   on its key: write an upsert (`ON CONFLICT DO UPDATE`).
 - The tables that come down have no read-only guard.

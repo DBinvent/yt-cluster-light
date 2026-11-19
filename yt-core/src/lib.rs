@@ -36,3 +36,9 @@ pub mod lite;
 // the lite node inside an application, on Turso
 #[cfg(feature = "turso")]
 pub mod turso;
+// [mysql] the lite node on MySQL
+#[cfg(feature = "mysql")]
+pub mod mysql;
+// [migrate] sge's schemas deployed to the node's own database, then synced
+#[cfg(any(feature = "lite-migrate", feature = "mysql", feature = "service"))]
+pub mod migrate;

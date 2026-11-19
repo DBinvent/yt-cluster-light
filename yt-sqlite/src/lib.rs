@@ -72,6 +72,19 @@ fn init(db: Connection) -> Result<bool> {
 		let t: String = c.get(0)?;
 		on_caller(c, |s| now(s.unsync(&t))).map(|_| t)
 	})?;
+	// [migrate] sge's schemas and scripts of a directory deployed here, mapped from the cluster's
+	// PostgreSQL, then each table they name with a key synced (yt_core::migrate): what it did
+	db.create_scalar_function("yt_migrate", 1, f, |c| {
+		let dir: String = c.get(0)?;
+		let s = now(Lite::new(Sqlite::new(caller(c)?), "")).map_err(user)?;
+		let r = now(s.migrate_dir(&Deploy(&s), std::path::Path::new(&dir))).map_err(user)?;
+		let mut out: Vec<String> = r.ran.iter().map(|(f, w)| format!("{}: {}", f, w)).collect();
+		if !r.synced.is_empty() {
+			out.push(format!("synced: {}", r.synced.join(", ")));
+		}
+		out.extend(r.notes.iter().map(|n| format!("note: {}", n)));
+		Ok(out.join("\n"))
+	})?;
 	db.create_scalar_function("yt_link", 0, f, |c| link(c, None))?;
 	db.create_scalar_function("yt_link", 2, f, |c| {
 		let upper: String = c.get(0)?;
@@ -83,6 +96,20 @@ fn init(db: Connection) -> Result<bool> {
 	#[allow(clippy::redundant_closure)]
 	db.create_scalar_function("yt_info", 0, f, |c| info(c))?;
 	Ok(false)
+}
+
+/// [migrate] this database for a migration: SQLite 3, deployed on the calling connection
+struct Deploy<'a>(&'a Lite<Sqlite>);
+
+#[tonic::async_trait]
+impl yt_core::migrate::Target for Deploy<'_> {
+	async fn source(&self) -> std::result::Result<schema_guard_tokio::mapping::Source, String> {
+		schema_guard_tokio::mapping::Source::parse("sqlite.3")
+	}
+	async fn deploy(&self, y: yaml_rust2::Yaml, file: &str) -> std::result::Result<Vec<String>, String> {
+		let c = self.0.conn().await;
+		schema_guard_tokio::sqlite::migrate(y, &*c, false, file, &Default::default()).await.map(|p| p.statements)
+	}
 }
 
 fn user(e: String) -> Error {

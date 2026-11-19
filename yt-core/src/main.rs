@@ -323,6 +323,21 @@ async fn main() -> ExitCode {
 		m.cfg.get("lang").or_else(|| rows.as_ref().ok().and_then(|r| r.get("lang"))).map(|v| v.as_str()),
 		pg.lc_messages().await.as_deref(), yt_core::i18n::system_locale().as_deref());
 	yt_core::i18n::set(lang);
+	// [migrate] the `migrate` setting (--file, or the config table's module L): sge's schemas and
+	// scripts there deployed first, and each table they name with a key set up to sync (yt_core::migrate, owner 2026-11-19)
+	if let Some(dir) = m.cfg.get("migrate").cloned().or_else(|| rows.as_ref().ok().and_then(|r| r.get("migrate").cloned())) {
+		match yt_core::migrate::migrate_pg(&m.db_url, &pg.schema, std::path::Path::new(&dir)).await {
+			Ok(r) => {
+				for (f, what) in &r.ran { info!(log, "migrate {}: {}", f, what); }
+				for n in &r.notes { warn!(log, "migrate: {}", n); }
+				if !r.synced.is_empty() { info!(log, "migrate: synced {}", r.synced.join(", ")); }
+			}
+			Err(e) => {
+				error!(log, "migrate {}: {}", dir, e);
+				return ExitCode::from(11);
+			}
+		}
+	}
 	let args = match rows.and_then(|rows| settings(&m.cfg, &rows)) {
 		Ok(a) => a,
 		Err(e) => {

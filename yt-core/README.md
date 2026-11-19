@@ -156,8 +156,42 @@ cluster that is being upgraded from 1.20:
 - One hop. A lite node gets what its cluster commits. Rows that the cluster itself
   received over a link (from a cluster above it, or from another lite node) are not passed
   on.
-- A schema change is not followed. Run `yt_setup` again after one.
+- A schema change is not followed by itself: deploy it with the `migrate` setting (below), or
+  run `yt_setup` again after one.
 - A local write to a table that comes down from the cluster is not refused here.
+
+## Migrate, then sync
+
+The `migrate` setting (a line of `--file`, or a row of the config table, module L) names a
+directory of sge's files, applied at the start as sge applies them: `S<version>__name.yaml`
+schemas through schema_guard_tokio, `V<version>__name.sql` scripts once, `R__name.sql` again
+when changed - each kept in `yt_migrations` with its MD5. Then each table the schemas name with
+a primary key is set up to sync (`yt_setup('schema.table')`); one with none is said, not synced.
+Run it again after a schema change. The Turso and MySQL forms do the same (`migrate_dir`; the
+SQLite extension's `yt_migrate(dir)`, feature `lite-migrate`), and
+there the cluster's PostgreSQL schema is mapped for the node's database first - its custom SQL
+left out - with each column's PostgreSQL type kept in `yt_columns`, so a value goes up with the
+type the cluster has.
+
+## Beside MySQL: yt-lite-mysql
+
+With the `mysql` feature, the lite node's store is a MySQL database (sqlx, pure Rust), and
+`yt-lite-mysql` its service:
+
+```sh
+yt-lite-mysql mysql://user:pw@host:3306/app --migrate ./schemas --once       # the schema only
+yt-lite-mysql mysql://user:pw@host:3306/app --uuid <uuid> --upper http://node1:7421 \
+    --cluster-db appdb --root SHA256:... --migrate ./schemas
+```
+
+- **Capture** as on Turso: three triggers a table write the row as JSON to `yt_outbox`. The
+  node's own applies set `@yt_apply` on their session and the triggers write nothing then, so
+  what came down does not go back up while the application's writes go on.
+- **Types.** A `timestamptz` is a `datetime(6)` in UTC here: it goes up with `+00` and comes
+  down as UTC. A boolean is a `tinyint(1)`.
+- **Names** as on Turso: a table of schema `s` is the MySQL table `s.t` (a name with a dot,
+  quoted) in the URL's database.
+- MySQL 8 signs in with TLS here (no RSA): a server makes its certificate by itself.
 
 ## Inside an application: Turso
 

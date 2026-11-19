@@ -20,13 +20,20 @@ default = ["service"]
 # socket, with PostgreSQL as its store (src/main.rs, src/service.rs, src/pg.rs), and its CA and
 # TLS to the az above (src/tls.rs)
 service = ["tls", "dep:marg", "dep:tokio-postgres", "dep:tokio-stream", "dep:slog", "dep:slog-term", "dep:slog-async",
-	"dep:prost", "yt-core-proto/server", "tokio/rt-multi-thread", "tokio/signal", "tokio/fs"]
+	"dep:prost", "yt-core-proto/server", "tokio/rt-multi-thread", "tokio/signal", "tokio/fs",
+	"dep:schema_guard_tokio", "schema_guard_tokio/postgres", "dep:yaml-rust2"]
 # the node's CA and the TLS of its calls to the cluster above (src/tls.rs): yt-lite's, and an
 # application's that links its own database (feature turso)
 tls = ["dep:openssl", "dep:tokio-openssl", "dep:hyper-util", "dep:tower", "dep:base64", "tokio/net"]
 # the lite node inside an application, on Turso, the application's own database
 # (src/turso.rs): its rows captured by triggers, what comes down applied there
-turso = ["tls", "lite", "dep:turso"]
+turso = ["tls", "lite-migrate", "dep:turso", "schema_guard_tokio/sqlite"]
+# [migrate] a migration on a lite store of the SQLite dialect, any connection: yt-sqlite's
+# (the mapping here; the deploy its own, through schema_guard_tokio's engine, sqlite::SqliteDb)
+lite-migrate = ["lite", "dep:schema_guard_tokio", "dep:yaml-rust2"]
+# [mysql] the lite node on MySQL (src/mysql.rs, owner 2026-11-19): crate::lite's store in MySQL's SQL,
+# its rows captured by triggers, what comes down applied there; yt-lite-mysql its service
+mysql = ["tls", "lite", "dep:sqlx", "dep:schema_guard_tokio", "schema_guard_tokio/mysql", "dep:yaml-rust2"]
 # a lite node's store in a database of the SQLite dialect (src/lite.rs): Turso's (feature
 # turso), SQLite's (yt-sqlite, the loadable extension)
 lite = ["dep:serde_json", "dep:prost", "dep:base64"]
@@ -35,6 +42,12 @@ lite = ["dep:serde_json", "dep:prost", "dep:base64"]
 name = "yt-lite"
 path = "src/main.rs"
 required-features = ["service"]
+
+# [mysql] the lite node beside one MySQL database
+[[bin]]
+name = "yt-lite-mysql"
+path = "src/main_mysql.rs"
+required-features = ["mysql"]
 
 [dependencies]
 # the repository's copy here, the published one (crates.io, 1.21.0 on) for yt-core published
@@ -61,6 +74,12 @@ tower = { version = "^0.5", default-features = false, features = ["util"], optio
 base64 = { version = "^0.23", optional = true }
 # feature turso: the application's database, and its captured rows as JSON
 turso = { version = "=0.9.0-pre.5", optional = true }
+# [migrate] a directory of sge's schemas (S<version>__name.yaml) deployed to the node's own database
+# before it syncs - mapped for SQLite and MySQL from the cluster's PostgreSQL (src/migrate.rs)
+schema_guard_tokio = { version = "^2.4.1", optional = true, default-features = false }
+yaml-rust2 = { version = "^0.13", optional = true, default-features = false }
+# [mysql] MySQL, pure Rust: no client library; TLS for MySQL 8's sign-in, no RSA (RUSTSEC-2023-0071)
+sqlx = { version = "0.9.0", optional = true, default-features = false, features = ["mysql", "runtime-tokio", "tls-rustls-ring-webpki"] }
 serde_json = { version = "^1", optional = true }
 
 [dev-dependencies]

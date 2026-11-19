@@ -82,6 +82,43 @@ pub trait Conn: Send + Sync + 'static {
 	async fn exec(&self, sql: &str, params: Vec<Val>) -> Result<u64, String>;
 	async fn batch(&self, sql: &str) -> Result<(), String>;
 	async fn rows(&self, sql: &str, params: Vec<Val>) -> Result<Vec<Vec<Val>>, String>;
+	/// [mysql] the SQL it speaks: SQLite's (Turso, yt-sqlite), or MySQL's (crate::mysql)
+	fn dialect(&self) -> Dialect {
+		Dialect::Sqlite
+	}
+}
+
+/// [mysql] The SQL of a store's database (owner, 2026-11-19: a MySQL lite node). What differs:
+/// names quoted, the upserts, the capture triggers, how an apply keeps its own rows out of the
+/// outbox (SQLite: the write lock and the outbox rows above its start deleted; MySQL: a session
+/// variable the triggers read), a keyless row found, the catalog read.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Dialect {
+	Sqlite,
+	Mysql,
+}
+
+impl Dialect {
+	/// a name quoted
+	pub fn ident(&self, s: &str) -> String {
+		match self {
+			Dialect::Sqlite => format!("\"{}\"", s.replace('"', "\"\"")),
+			Dialect::Mysql => format!("`{}`", s.replace('`', "``")),
+		}
+	}
+
+	/// `INSERT ... ` that keeps the row there, or replaces `set` columns from the new one
+	fn upsert(&self, keys: &str, set: &[&str]) -> String {
+		match (self, set.is_empty()) {
+			(Dialect::Sqlite, true) => format!(" ON CONFLICT ({}) DO NOTHING", keys),
+			(Dialect::Sqlite, false) => format!(" ON CONFLICT ({}) DO UPDATE SET {}", keys,
+				set.iter().map(|c| format!("{c} = excluded.{c}")).collect::<Vec<_>>().join(", ")),
+			// MySQL's no-op update keeps the row as it is: INSERT IGNORE would hide other errors too
+			(Dialect::Mysql, true) => format!(" ON DUPLICATE KEY UPDATE {k} = {k}", k = keys.split(',').next().unwrap_or("").trim()),
+			(Dialect::Mysql, false) => format!(" ON DUPLICATE KEY UPDATE {}",
+				set.iter().map(|c| format!("{c} = VALUES({c})")).collect::<Vec<_>>().join(", ")),
+		}
+	}
 }
 
 /// `yt_position`'s row of how far this node applied what came down
@@ -97,6 +134,10 @@ pub struct Col {
 	pub decl: String,
 	/// part of the primary key
 	pub pk: bool,
+	/// [mysql] its type in the cluster above: from `yt_columns` when a migration mapped the
+	/// PostgreSQL schema to this database (timestamptz kept as such, though MySQL's column is a
+	/// datetime, SQLite's a text), else the declared one
+	pub pg: String,
 }
 
 /// What kind of value a declared type holds, and the PostgreSQL type id that goes with
@@ -115,8 +156,27 @@ pub enum Kind {
 /// takes the value as text).
 pub fn kind(decl: &str) -> (Kind, u32) {
 	let d = decl.trim().to_lowercase();
-	let base = d.split('(').next().unwrap_or("").trim();
+	// [mysql] MySQL's boolean, and its type words after the name (unsigned, auto_increment)
+	if d.starts_with("tinyint(1)") {
+		return (Kind::Bool, 16);
+	}
+	// [review 2026-11-19] a precision in the middle of the name taken out: timestamp(3) with time zone
+	let whole: String = { let mut out = String::new(); let mut depth = 0;
+		for ch in d.chars() { match ch { '(' => depth += 1, ')' => depth -= 1, c if depth == 0 => out.push(c), _ => {} } }
+		out.split_whitespace().collect::<Vec<_>>().join(" ") };
+	let base = whole.as_str();
+	let base = match base.split_whitespace().next() {
+		Some(w) if !matches!(base, "double precision" | "character varying" | "timestamp with time zone"
+			| "timestamp without time zone" | "time without time zone" | "time with time zone") => w,
+		_ => base,
+	};
 	match base {
+		// [mysql] MySQL's own names
+		"tinyint" | "mediumint" => (Kind::Int, if base == "tinyint" { 21 } else { 23 }),
+		"datetime" => (Kind::Text, 1114),
+		"tinytext" | "mediumtext" | "longtext" | "enum" | "set" => (Kind::Text, 25),
+		"tinyblob" | "mediumblob" | "longblob" | "varbinary" | "binary" => (Kind::Bytes, 17),
+		"year" => (Kind::Int, 21),
 		"smallint" | "int2" => (Kind::Int, 21),
 		"int" | "integer" | "int4" | "serial" => (Kind::Int, 23),
 		"bigint" | "int8" | "bigserial" => (Kind::Int, 20),
@@ -129,7 +189,7 @@ pub fn kind(decl: &str) -> (Kind, u32) {
 		"timestamptz" | "timestamp with time zone" => (Kind::Text, 1184),
 		"timestamp" | "timestamp without time zone" => (Kind::Text, 1114),
 		"date" => (Kind::Text, 1082),
-		"time" => (Kind::Text, 1083),
+		"time" | "time without time zone" => (Kind::Text, 1083),
 		"numeric" | "decimal" => (Kind::Text, 1700),
 		"json" => (Kind::Text, 114),
 		"jsonb" => (Kind::Text, 3802),
@@ -223,10 +283,16 @@ pub(crate) fn text(v: &Val) -> Option<String> {
 }
 
 impl<C: Conn> Lite<C> {
+	/// [migrate] this node's connection, for a migration's deploy (crate::migrate)
+	pub async fn conn(&self) -> tokio::sync::MutexGuard<'_, C> {
+		self.conn.lock().await
+	}
+
 	/// The store on `conn`, a connection of this node's own to the database, and its three
 	/// tables. `cluster_db`: this database's name in the cluster above.
 	pub async fn new(conn: C, cluster_db: &str) -> Result<Lite<C>, String> {
-		conn.batch("CREATE TABLE IF NOT EXISTS yt_outbox (
+		let ddl = match conn.dialect() {
+			Dialect::Sqlite => "CREATE TABLE IF NOT EXISTS yt_outbox (
 				id INTEGER PRIMARY KEY AUTOINCREMENT,
 				tbl TEXT NOT NULL,
 				action TEXT NOT NULL,
@@ -241,7 +307,36 @@ impl<C: Conn> Lite<C> {
 				name TEXT NOT NULL,
 				module TEXT NOT NULL,
 				value TEXT NOT NULL DEFAULT '',
-				PRIMARY KEY (module, name));").await.map_err(e("yt_outbox, yt_position, yt_config"))?;
+				PRIMARY KEY (module, name));
+			CREATE TABLE IF NOT EXISTS yt_columns (
+				tbl TEXT NOT NULL,
+				col TEXT NOT NULL,
+				pg TEXT NOT NULL,
+				PRIMARY KEY (tbl, col));",
+			// [mysql] the same tables in MySQL's types; a name a varchar, to be a key
+			Dialect::Mysql => "CREATE TABLE IF NOT EXISTS yt_outbox (
+				id BIGINT AUTO_INCREMENT PRIMARY KEY,
+				tbl VARCHAR(255) NOT NULL,
+				action CHAR(1) NOT NULL,
+				old LONGTEXT,
+				new LONGTEXT,
+				passed_at DATETIME(6));
+			CREATE TABLE IF NOT EXISTS yt_position (
+				name VARCHAR(255) PRIMARY KEY,
+				term BIGINT NOT NULL,
+				subterm BIGINT NOT NULL);
+			CREATE TABLE IF NOT EXISTS yt_config (
+				name VARCHAR(255) NOT NULL,
+				module VARCHAR(64) NOT NULL,
+				value VARCHAR(1024) NOT NULL DEFAULT '',
+				PRIMARY KEY (module, name));
+			CREATE TABLE IF NOT EXISTS yt_columns (
+				tbl VARCHAR(255) NOT NULL,
+				col VARCHAR(255) NOT NULL,
+				pg VARCHAR(255) NOT NULL,
+				PRIMARY KEY (tbl, col));",
+		};
+		conn.batch(ddl).await.map_err(e("yt_outbox, yt_position, yt_config, yt_columns"))?;
 		Ok(Lite { conn: Mutex::new(conn), cluster_db: cluster_db.to_string(), tables: Mutex::new(HashMap::new()),
 			missed: AtomicU64::new(0), not_held: AtomicU64::new(0), not_sent: AtomicU64::new(0), not_synced: AtomicU64::new(0), counted: AtomicU64::new(0), apply_error: std::sync::Mutex::new(String::new()) })
 	}
@@ -251,13 +346,25 @@ impl<C: Conn> Lite<C> {
 		if let Some(t) = self.tables.lock().await.get(local) {
 			return Ok(Some(t.clone()));
 		}
-		let rows = c.rows(&format!("SELECT cid, name, type, pk FROM pragma_table_info({})", lit(local)), vec![])
-			.await.map_err(e("pragma_table_info"))?;
+		let rows = match c.dialect() {
+			Dialect::Sqlite => c.rows(&format!("SELECT cid, name, type, pk FROM pragma_table_info({})", lit(local)), vec![])
+				.await.map_err(e("pragma_table_info"))?,
+			// [mysql] the catalog of the connection's database
+			Dialect::Mysql => c.rows("SELECT CAST(ORDINAL_POSITION - 1 AS SIGNED), CAST(COLUMN_NAME AS CHAR), CAST(COLUMN_TYPE AS CHAR), \
+				CAST(COLUMN_KEY = 'PRI' AS SIGNED) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() \
+				AND TABLE_NAME = ? ORDER BY ORDINAL_POSITION", vec![Val::Text(local.to_string())]).await.map_err(e("information_schema"))?,
+		};
 		if rows.is_empty() {
 			return Ok(None);
 		}
-		let cols: Vec<Col> = rows.iter().map(|r| Col { attnum: int(&r[0]) as u32 + 1, name: text(&r[1]).unwrap_or_default(),
-			decl: text(&r[2]).unwrap_or_default().to_lowercase(), pk: int(&r[3]) > 0 }).collect();
+		// [mysql] the PostgreSQL types a migration kept for the table's columns
+		let pg: HashMap<String, String> = c.rows("SELECT col, pg FROM yt_columns WHERE tbl = ?", vec![Val::Text(local.to_string())])
+			.await.map_err(e("yt_columns"))?.iter().map(|r| (text(&r[0]).unwrap_or_default(), text(&r[1]).unwrap_or_default())).collect();
+		let cols: Vec<Col> = rows.iter().map(|r| {
+			let name = text(&r[1]).unwrap_or_default();
+			let decl = text(&r[2]).unwrap_or_default().to_lowercase();
+			Col { attnum: int(&r[0]) as u32 + 1, pg: pg.get(&name).cloned().unwrap_or_else(|| decl.clone()), name, decl, pk: int(&r[3]) > 0 }
+		}).collect();
 		self.tables.lock().await.insert(local.to_string(), cols.clone());
 		Ok(Some(cols))
 	}
@@ -292,8 +399,7 @@ impl<C: Conn> Lite<C> {
 		}
 		let table = &Self::local(table);
 		let c = self.conn.lock().await;
-		c.exec("INSERT INTO yt_config (name, module, value) VALUES (?, 'A', ?) \
-			ON CONFLICT (module, name) DO UPDATE SET value = excluded.value",
+		c.exec(&format!("INSERT INTO yt_config (name, module, value) VALUES (?, 'A', ?){}", c.dialect().upsert("module, name", &["value"])),
 			vec![Val::Text(Self::a_name(table)), Val::Text(value.to_string())]).await.map_err(e("yt_config"))?;
 		Ok(())
 	}
@@ -306,7 +412,7 @@ impl<C: Conn> Lite<C> {
 			.await.map_err(e("yt_config"))?;
 		let mut sql = String::new();
 		for a in ["i", "u", "d"] {
-			sql.push_str(&format!("DROP TRIGGER IF EXISTS {};\n", ident(&format!("yt_{}_{}", a, table))));
+			sql.push_str(&format!("DROP TRIGGER IF EXISTS {};\n", c.dialect().ident(&format!("yt_{}_{}", a, table))));
 		}
 		c.batch(&sql).await.map_err(e("the capture triggers"))?;
 		Ok(())
@@ -334,17 +440,39 @@ impl<C: Conn> Lite<C> {
 				WHEN typeof({v}) = 'real' AND {v} < -1.7976931348623157e308 THEN '-Infinity' \
 				WHEN typeof({v}) = 'real' THEN printf('%!.17g', {v}) ELSE {v} END", lit(&c.name))
 		}).collect::<Vec<_>>().join(", "));
-		let (t, q) = (ident(table), lit(table));
+		let d = c.dialect();
+		// [mysql] MySQL's image: JSON_OBJECT, a BLOB as PostgreSQL writes a bytea; a value of this
+		// node's own apply is not captured - the apply's session sets @yt_apply
+		let image = |of: &str| match d {
+			Dialect::Sqlite => image(of),
+			Dialect::Mysql => format!("JSON_OBJECT({})", cols.iter().map(|c| {
+				let v = format!("{}.{}", of, d.ident(&c.name));
+				let x = if kind(&c.decl).0 == Kind::Bytes { format!("IF({v} IS NULL, NULL, CONCAT('\\\\x', LOWER(HEX({v}))))") } else { v };
+				format!("{}, {}", lit(&c.name), x)
+			}).collect::<Vec<_>>().join(", ")),
+		};
+		let (t, q) = (d.ident(table), lit(table));
 		let mut sql = String::new();
 		for (a, when, old, new) in [("i", "INSERT", "NULL".to_string(), image("NEW")), ("u", "UPDATE", image("OLD"), image("NEW")),
 			("d", "DELETE", image("OLD"), "NULL".to_string())] {
-			let name = ident(&format!("yt_{}_{}", a, table));
-			sql.push_str(&format!("DROP TRIGGER IF EXISTS {name};
+			let name = d.ident(&format!("yt_{}_{}", a, table));
+			match d {
+				Dialect::Sqlite => sql.push_str(&format!("DROP TRIGGER IF EXISTS {name};
 				CREATE TRIGGER {name} AFTER {when} ON {t} BEGIN
-				INSERT INTO yt_outbox (tbl, action, old, new) VALUES ({q}, '{}', {old}, {new}); END;\n", a.to_uppercase()));
+				INSERT INTO yt_outbox (tbl, action, old, new) VALUES ({q}, '{}', {old}, {new}); END;\n", a.to_uppercase())),
+				// one statement each: MySQL's trigger body with no BEGIN ... END, sent apart
+				Dialect::Mysql => {
+					c.batch(&format!("DROP TRIGGER IF EXISTS {name}")).await.map_err(e("the capture triggers"))?;
+					c.batch(&format!("CREATE TRIGGER {name} AFTER {when} ON {t} FOR EACH ROW \
+						INSERT INTO yt_outbox (tbl, action, old, new) SELECT {q}, '{}', {old}, {new} FROM DUAL WHERE @yt_apply IS NULL",
+						a.to_uppercase())).await.map_err(e("the capture triggers"))?;
+				}
+			}
 		}
-		c.batch(&sql).await.map_err(e("the capture triggers"))?;
-		c.exec("INSERT INTO yt_config (name, module, value) VALUES (?, 'A', '') ON CONFLICT (module, name) DO NOTHING",
+		if !sql.is_empty() {
+			c.batch(&sql).await.map_err(e("the capture triggers"))?;
+		}
+		c.exec(&format!("INSERT INTO yt_config (name, module, value) VALUES (?, 'A', ''){}", d.upsert("module, name", &[])),
 			vec![Val::Text(Self::a_name(table))]).await.map_err(e("yt_config"))?;
 		Ok(())
 	}
@@ -353,11 +481,11 @@ impl<C: Conn> Lite<C> {
 	fn entity(&self, id: u64, local: &str, action: &str, old: Option<String>, new: Option<String>, cols: &[Col]) -> Result<DbInputEntity, String> {
 		let (schema, table) = cluster_name(local);
 		let columns = cols.iter().map(|c| ColumnRef { attnum: c.attnum, name: c.name.clone(), pk: c.pk,
-			atttypid: kind(&c.decl).1, ..Default::default() }).collect();
+			atttypid: kind(&c.pg).1, ..Default::default() }).collect();
 		let image = |j: Option<String>| -> Result<HashMap<u32, VarType>, String> {
 			let Some(j) = j else { return Ok(HashMap::new()) };
 			let m: serde_json::Map<String, serde_json::Value> = serde_json::from_str(&j).map_err(e("yt_outbox, a row's JSON"))?;
-			Ok(cols.iter().filter_map(|c| m.get(&c.name).map(|v| (c.attnum, var(v, kind(&c.decl).0)))).collect())
+			Ok(cols.iter().filter_map(|c| m.get(&c.name).map(|v| (c.attnum, up_value(var(v, kind(&c.pg).0), c)))).collect())
 		};
 		let action = match action { "I" => DbAction::Insert, "U" => DbAction::Update, _ => DbAction::Delete };
 		Ok(DbInputEntity { tx: id, table: Some(TableRef { db: self.cluster_db.clone(), schema, table, columns, ..Default::default() }),
@@ -371,8 +499,7 @@ impl<C: Conn> Lite<C> {
 	}
 
 	async fn set_position(c: &C, name: &str, p: Pos) -> Result<(), String> {
-		c.exec("INSERT INTO yt_position (name, term, subterm) VALUES (?, ?, ?) \
-			ON CONFLICT (name) DO UPDATE SET term = excluded.term, subterm = excluded.subterm",
+		c.exec(&format!("INSERT INTO yt_position (name, term, subterm) VALUES (?, ?, ?){}", c.dialect().upsert("name", &["term", "subterm"])),
 			vec![Val::Text(name.to_string()), Val::Integer(p.0 as i64), Val::Integer(p.1 as i64)])
 			.await.map_err(e("yt_position"))?;
 		Ok(())
@@ -402,14 +529,42 @@ impl<C: Conn> Lite<C> {
 				}
 				let local = local_name(&t.schema, &t.table);
 				match self.columns(&c, &local).await? {
-					Some(cols) => plans.push(statement(row, &local, &cols)?),
+					Some(cols) => plans.push(statement_in(c.dialect(), row, &local, &cols)?),
 					None => not_held += 1,
 				}
 			}
 		}
-		c.exec("BEGIN IMMEDIATE", vec![]).await.map_err(e("the apply's transaction"))?;
+		let mysql = c.dialect() == Dialect::Mysql;
+		if mysql {
+			// [mysql] a transaction an apply dropped half way left open is rolled back, not committed
+			// by the next START TRANSACTION; then this session's writes are not captured (the
+			// triggers read @yt_apply), reset on every way out below [review 2026-11-19]
+			let _ = c.exec("ROLLBACK", vec![]).await;
+			c.batch("SET @yt_apply = 1").await.map_err(e("the apply's transaction"))?;
+		}
+		let r = self.apply_in(&c, mysql, plans, upto).await;
+		if mysql {
+			if let Err(x) = c.batch("SET @yt_apply = NULL").await {
+				return Err(e("the apply's transaction")(x));
+			}
+		}
+		match r {
+			Ok(missed) => {
+				self.missed.fetch_add(missed, Ordering::Relaxed);
+				self.not_held.fetch_add(not_held, Ordering::Relaxed);
+				self.not_synced.fetch_add(not_synced, Ordering::Relaxed);
+				Ok(Some(upto))
+			}
+			Err(x) => Err(x),
+		}
+	}
+
+	/// the apply's transaction: its statements, the outbox kept clean (SQLite), the cursor, COMMIT;
+	/// rolled back on any failure
+	async fn apply_in(&self, c: &C, mysql: bool, plans: Vec<(String, Vec<Val>, bool)>, upto: Pos) -> Result<u64, String> {
+		c.exec(if mysql { "START TRANSACTION" } else { "BEGIN IMMEDIATE" }, vec![]).await.map_err(e("the apply's transaction"))?;
 		let r: Result<u64, String> = async {
-			let top = c.rows("SELECT coalesce(max(id), 0) FROM yt_outbox", vec![]).await.map_err(e("yt_outbox"))?;
+			let top = if mysql { vec![] } else { c.rows("SELECT coalesce(max(id), 0) FROM yt_outbox", vec![]).await.map_err(e("yt_outbox"))? };
 			let top = top.first().map(|r| int(&r[0])).unwrap_or(0);
 			let mut missed = 0;
 			for (sql, params, must_match) in plans {
@@ -418,8 +573,10 @@ impl<C: Conn> Lite<C> {
 					missed += 1;
 				}
 			}
-			// the triggers' copies of what was just applied: it does not go back up
-			c.exec("DELETE FROM yt_outbox WHERE id > ?", vec![Val::Integer(top)]).await.map_err(e("yt_outbox"))?;
+			// the triggers' copies of what was just applied: it does not go back up (MySQL's made none)
+			if !mysql {
+				c.exec("DELETE FROM yt_outbox WHERE id > ?", vec![Val::Integer(top)]).await.map_err(e("yt_outbox"))?;
+			}
 			Self::set_position(&*c, CURSOR, upto).await?;
 			Ok(missed)
 		}.await;
@@ -431,10 +588,7 @@ impl<C: Conn> Lite<C> {
 					let _ = c.exec("ROLLBACK", vec![]).await;
 					return Err(e("the apply's transaction")(x));
 				}
-				self.missed.fetch_add(missed, Ordering::Relaxed);
-				self.not_held.fetch_add(not_held, Ordering::Relaxed);
-				self.not_synced.fetch_add(not_synced, Ordering::Relaxed);
-				Ok(Some(upto))
+				Ok(missed)
 			}
 			Err(x) => {
 				let _ = c.exec("ROLLBACK", vec![]).await;
@@ -442,6 +596,7 @@ impl<C: Conn> Lite<C> {
 			}
 		}
 	}
+
 }
 
 /// A captured JSON value as the extension would send it for a column of `kind`.
@@ -500,14 +655,78 @@ pub(crate) fn value(v: &VarType, decl: &str) -> Result<Val, String> {
 /// whether it must match a row (an update or a delete). A row is found by its key; an
 /// insert of a key already here is a batch sent again: nothing.
 pub fn statement(row: &DbInputEntity, local: &str, cols: &[Col]) -> Result<(String, Vec<Val>, bool), String> {
+	statement_in(Dialect::Sqlite, row, local, cols)
+}
+
+/// [mysql] A value captured here, as the cluster above takes it: MySQL keeps a timestamptz as a
+/// datetime in UTC, with no zone in its text - it goes up with `+00`
+fn up_value(v: VarType, c: &Col) -> VarType {
+	match (&v.value, kind(&c.pg).1) {
+		(Some(V::Universal(s)), 1184) if c.decl.starts_with("datetime") || c.decl.starts_with("timestamp") && !c.decl.contains("zone") => {
+			let t = s.trim();
+			if t.contains('+') || t.rfind('-').is_some_and(|i| i > 10) || t.ends_with('Z') {
+				v
+			} else {
+				VarType { value: Some(V::Universal(format!("{}+00", t))) }
+			}
+		}
+		_ => v,
+	}
+}
+
+/// [mysql] A value from above for a column of this database: a timestamp with a zone, for a MySQL
+/// datetime, as UTC with none (MySQL's datetime holds no zone)
+fn down_value(v: &VarType, c: &Col, d: Dialect) -> Result<Val, String> {
+	let x = value(v, &c.decl)?;
+	if d != Dialect::Mysql || !(c.decl.starts_with("datetime") || c.decl.starts_with("timestamp")) {
+		return Ok(x);
+	}
+	Ok(match x {
+		Val::Text(s) => Val::Text(utc_naive(&s).unwrap_or(s)),
+		other => other,
+	})
+}
+
+/// `2026-11-13 18:00:00.5+02` (or `+02:00`, `Z`) as UTC with no zone: `2026-11-13 16:00:00.5`
+pub fn utc_naive(s: &str) -> Option<String> {
+	let t = s.trim();
+	let (body, off_min) = if let Some(b) = t.strip_suffix('Z') { (b, 0) } else {
+		let i = t.rfind(|c| c == '+' || c == '-').filter(|i| *i > 10)?;
+		let (b, z) = t.split_at(i);
+		let sign = if z.starts_with('-') { -1 } else { 1 };
+		let z = &z[1..];
+		let (h, m) = match z.split_once(':') { Some((h, m)) => (h, m), None if z.len() == 4 => (&z[..2], &z[2..]), None => (z, "0") };
+		(b, sign * (h.parse::<i64>().ok()? * 60 + m.parse::<i64>().ok()?))
+	};
+	let (date, time) = body.trim().split_once(|c| c == ' ' || c == 'T')?;
+	let mut dp = date.split('-').map(|x| x.parse::<i64>());
+	let (y, mo, d) = (dp.next()?.ok()?, dp.next()?.ok()?, dp.next()?.ok()?);
+	let (hms, frac) = match time.split_once('.') { Some((a, f)) => (a, format!(".{}", f)), None => (time, String::new()) };
+	let mut tp = hms.split(':').map(|x| x.parse::<i64>());
+	let (hh, mm, ss) = (tp.next()?.ok()?, tp.next()?.ok()?, tp.next().unwrap_or(Ok(0)).ok()?);
+	// days from the civil date (Howard Hinnant's), the offset taken off, and back
+	let days = |y: i64, m: i64, d: i64| { let y = if m <= 2 { y - 1 } else { y }; let era = y.div_euclid(400); let yoe = y - era * 400;
+		let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1; let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy; era * 146097 + doe - 719468 };
+	let secs = days(y, mo, d) * 86400 + hh * 3600 + mm * 60 + ss - off_min * 60;
+	let (z, rem) = (secs.div_euclid(86400), secs.rem_euclid(86400));
+	let z = z + 719468; let era = z.div_euclid(146097); let doe = z - era * 146097;
+	let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365; let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+	let mp = (5 * doy + 2) / 153; let dd = doy - (153 * mp + 2) / 5 + 1; let mm2 = if mp < 10 { mp + 3 } else { mp - 9 };
+	let yy = yoe + era * 400 + if mm2 <= 2 { 1 } else { 0 };
+	Some(format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}{}", yy, mm2, dd, rem / 3600, rem % 3600 / 60, rem % 60, frac))
+}
+
+/// The statement in `d`'s SQL: as [`statement`], MySQL's names quoted with backticks, a keyless
+/// row found by its whole old image with `<=>` and `LIMIT 1`, an insert sent again a no-op update
+pub fn statement_in(d: Dialect, row: &DbInputEntity, local: &str, cols: &[Col]) -> Result<(String, Vec<Val>, bool), String> {
 	let t = row.table.as_ref().ok_or_else(|| t!("lite-row-no-table"))?;
 	let name = |attnum: &u32| t.columns.iter().find(|c| c.attnum == *attnum).map(|c| c.name.clone())
 		.ok_or_else(|| t!("lite-no-attnum", table = local, attnum = attnum));
-	let decl = |n: &str| cols.iter().find(|c| c.name == n).map(|c| c.decl.clone())
+	let col = |n: &str| cols.iter().find(|c| c.name == n).cloned()
 		.ok_or_else(|| t!("lite-no-column", table = local, column = n));
 	let sorted = |m: &HashMap<u32, VarType>| { let mut k: Vec<u32> = m.keys().copied().collect(); k.sort(); k };
 	let pk: Vec<&Col> = cols.iter().filter(|c| c.pk).collect();
-	let tq = ident(local);
+	let tq = d.ident(local);
 	let mut params = Vec::new();
 	let action = DbAction::try_from(row.action).map_err(|_| DbAction::to_str(row.action))?;
 	let key = |params: &mut Vec<Val>| -> Result<String, String> {
@@ -520,8 +739,12 @@ pub fn statement(row: &DbInputEntity, local: &str, cols: &[Col]) -> Result<(Stri
 			}
 			for k in sorted(&row.old_data) {
 				let n = name(&k)?;
-				params.push(value(&row.old_data[&k], &decl(&n)?)?);
-				wh.push(format!("{} IS ?", ident(&n)));
+				params.push(down_value(&row.old_data[&k], &col(&n)?, d)?);
+				wh.push(format!("{} {} ?", d.ident(&n), if d == Dialect::Mysql { "<=>" } else { "IS" }));
+			}
+			// [mysql] no rowid: the first of the equal rows, by LIMIT 1 on the update or the delete
+			if d == Dialect::Mysql {
+				return Ok(format!("{} LIMIT 1", wh.join(" AND ")));
 			}
 			return Ok(format!("rowid = (SELECT rowid FROM {} WHERE {} LIMIT 1)", tq, wh.join(" AND ")));
 		}
@@ -529,8 +752,8 @@ pub fn statement(row: &DbInputEntity, local: &str, cols: &[Col]) -> Result<(Stri
 			let v = t.columns.iter().find(|r| r.name == c.name)
 				.and_then(|r| row.old_data.get(&r.attnum).or_else(|| row.new_data.get(&r.attnum)))
 				.ok_or_else(|| t!("lite-no-key-value", table = local, column = c.name))?;
-			params.push(value(v, &c.decl)?);
-			wh.push(format!("{} = ?", ident(&c.name)));
+			params.push(down_value(v, c, d)?);
+			wh.push(format!("{} = ?", d.ident(&c.name)));
 		}
 		Ok(wh.join(" AND "))
 	};
@@ -539,13 +762,26 @@ pub fn statement(row: &DbInputEntity, local: &str, cols: &[Col]) -> Result<(Stri
 			let (mut names, mut marks) = (Vec::new(), Vec::new());
 			for k in sorted(&row.new_data) {
 				let n = name(&k)?;
-				params.push(value(&row.new_data[&k], &decl(&n)?)?);
-				names.push(ident(&n));
+				params.push(down_value(&row.new_data[&k], &col(&n)?, d)?);
+				names.push(d.ident(&n));
 				marks.push("?");
 			}
 			// a conflict on the key only: a batch sent again inserts nothing
+			if d == Dialect::Mysql && !pk.is_empty() {
+				// [mysql] [review 2026-11-19] not ON DUPLICATE KEY: it takes any unique key's conflict for the
+				// primary key's and drops the row unsaid; here only a row of the same key is passed
+				let mut cond = Vec::new();
+				for c in &pk {
+					let v = t.columns.iter().find(|r| r.name == c.name).and_then(|r| row.new_data.get(&r.attnum))
+						.ok_or_else(|| t!("lite-no-key-value", table = local, column = c.name))?;
+					params.push(down_value(v, c, d)?);
+					cond.push(format!("{} = ?", d.ident(&c.name)));
+				}
+				return Ok((format!("INSERT INTO {} ({}) SELECT {} FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM {} WHERE {})",
+					tq, names.join(", "), marks.join(", "), tq, cond.join(" AND ")), params, false));
+			}
 			let conflict = if pk.is_empty() { String::new() } else {
-				format!(" ON CONFLICT ({}) DO NOTHING", pk.iter().map(|c| ident(&c.name)).collect::<Vec<_>>().join(", "))
+				d.upsert(&pk.iter().map(|c| d.ident(&c.name)).collect::<Vec<_>>().join(", "), &[])
 			};
 			(format!("INSERT INTO {} ({}) VALUES ({}){}", tq, names.join(", "), marks.join(", "), conflict), params, false)
 		}
@@ -557,8 +793,8 @@ pub fn statement(row: &DbInputEntity, local: &str, cols: &[Col]) -> Result<(Stri
 				if pk.iter().any(|c| c.name == n) && row.old_data.get(&k).is_none_or(|o| *o == row.new_data[&k]) {
 					continue;
 				}
-				params.push(value(&row.new_data[&k], &decl(&n)?)?);
-				set.push(format!("{} = ?", ident(&n)));
+				params.push(down_value(&row.new_data[&k], &col(&n)?, d)?);
+				set.push(format!("{} = ?", d.ident(&n)));
 			}
 			if set.is_empty() {
 				return Ok(("SELECT 1".to_string(), Vec::new(), false));
@@ -639,10 +875,14 @@ impl<C: Conn> crate::db::Db for Lite<C> {
 
 	async fn passed(&self, upto: Pos) -> Result<(), String> {
 		let c = self.conn.lock().await;
-		c.exec("UPDATE yt_outbox SET passed_at = datetime('now') WHERE passed_at IS NULL AND id <= ?",
+		let (now, day_ago) = match c.dialect() {
+			Dialect::Sqlite => ("datetime('now')", "datetime('now', '-1 day')"),
+			Dialect::Mysql => ("NOW(6)", "NOW(6) - INTERVAL 1 DAY"),
+		};
+		c.exec(&format!("UPDATE yt_outbox SET passed_at = {} WHERE passed_at IS NULL AND id <= ?", now),
 			vec![Val::Integer(id_of(upto) as i64)]).await.map_err(e("yt_outbox"))?;
 		// kept a day: a cluster above restored from a backup asks for them again
-		c.exec("DELETE FROM yt_outbox WHERE passed_at < datetime('now', '-1 day')", vec![]).await.map_err(e("yt_outbox"))?;
+		c.exec(&format!("DELETE FROM yt_outbox WHERE passed_at < {}", day_ago), vec![]).await.map_err(e("yt_outbox"))?;
 		Self::set_position(&*c, "passed", upto).await
 	}
 }
